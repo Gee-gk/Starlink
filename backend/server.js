@@ -77,27 +77,27 @@ app.get('/api/health', (req, res) => {
 });
 
 // Get all packages
-app.get('/api/packages', (req, res) => {
-    const packages = [
-        // Quotidien Limité
-        { id: 'daily-1gb', name: '1 GB / 24h', data: '1 GB', duration: '24 heures', price: 100, originalPrice: 200, type: 'daily', limit: 'limited', currency: 'XAF', features: ['1 GB de données', 'Validité 24h', 'Activation instantanée'] },
-        { id: 'daily-3gb', name: '3 GB / 24h', data: '3 GB', duration: '24 heures', price: 250, originalPrice: 400, type: 'daily', limit: 'limited', currency: 'XAF', features: ['3 GB de données', 'Validité 24h', 'Activation instantanée'] },
-        { id: 'daily-7gb', name: '7 GB / 24h', data: '7 GB', duration: '24 heures', price: 500, originalPrice: 800, type: 'daily', limit: 'limited', currency: 'XAF', features: ['7 GB de données', 'Validité 24h', 'Activation instantanée'] },
-        { id: 'daily-15gb', name: '15 GB / 24h', data: '15 GB', duration: '24 heures', price: 800, originalPrice: 1200, type: 'daily', limit: 'limited', currency: 'XAF', features: ['15 GB de données', 'Validité 24h', 'Activation instantanée'] },
-        // Planifié (Extended)
-        { id: 'daily-30gb', name: '30 GB / 7 jours', data: '30 GB', duration: '7 jours', price: 1200, originalPrice: 1800, type: 'weekly', limit: 'limited', currency: 'XAF', features: ['30 GB de données', 'Validité 7 jours', 'Streaming HD'] },
-        { id: 'daily-50gb', name: '50 GB / 15 jours', data: '50 GB', duration: '15 jours', price: 1800, originalPrice: 2500, type: 'weekly', limit: 'limited', currency: 'XAF', features: ['50 GB de données', 'Validité 15 jours', 'Streaming HD', 'Support prioritaire'] },
-        // Illimité
-        { id: 'daily-unlimited', name: 'Illimité / 3 jours', data: 'Illimité', duration: '3 jours', price: 1000, originalPrice: 1500, type: 'daily', limit: 'unlimited', currency: 'XAF', features: ['Données illimitées', 'Validité 3 jours', 'Activation instantanée'] },
-        { id: 'weekly-unlimited', name: 'Illimité / 7 jours', data: 'Illimité', duration: '7 jours', price: 2000, originalPrice: 3000, type: 'weekly', limit: 'unlimited', currency: 'XAF', features: ['Données illimitées', 'Validité 7 jours', 'Streaming HD'] },
-        { id: 'monthly-unlimited', name: 'Illimité / 1 mois', data: 'Illimité', duration: '1 mois', price: 5000, originalPrice: 8000, type: 'monthly', limit: 'unlimited', currency: 'XAF', features: ['Données illimitées', 'Validité 30 jours', 'Streaming 4K', 'Support prioritaire', 'IP statique'] },
-        // Mensuel Limité
-        { id: 'monthly-10gb', name: '10 GB / 1 mois', data: '10 GB', duration: '1 mois', price: 1000, originalPrice: 1500, type: 'monthly', limit: 'limited', currency: 'XAF', features: ['10 GB de données', 'Validité 30 jours', 'Streaming HD'] },
-        { id: 'monthly-50gb', name: '50 GB / 1 mois', data: '50 GB', duration: '1 mois', price: 2500, originalPrice: 4000, type: 'monthly', limit: 'limited', currency: 'XAF', features: ['50 GB de données', 'Validité 30 jours', 'Streaming 4K', 'Support prioritaire'] },
-        { id: 'monthly-100gb', name: '100 GB / 1 mois', data: '100 GB', duration: '1 mois', price: 4000, originalPrice: 6000, type: 'monthly', limit: 'limited', currency: 'XAF', features: ['100 GB de données', 'Validité 30 jours', 'Streaming 4K', 'Support prioritaire'] }
-    ];
-    res.json(packages);
-});
+    app.get('/api/packages', (req, res) => {
+        const packages = [
+            // Daily Limited
+            { id: 'daily-1gb', name: '1 GB / 24h', data: '1 GB', duration: '24 hours', price: 150, originalPrice: 300, type: 'daily', limit: 'limited', currency: 'KES', features: ['1 GB data', '24h validity', 'Instant activation'] },
+            { id: 'daily-3gb', name: '3 GB / 24h', data: '3 GB', duration: '24 hours', price: 350, originalPrice: 500, type: 'daily', limit: 'limited', currency: 'KES', features: ['3 GB data', '24h validity', 'Instant activation'] },
+            { id: 'daily-7gb', name: '7 GB / 24h', data: '7 GB', duration: '24 hours', price: 600, originalPrice: 1000, type: 'daily', limit: 'limited', currency: 'KES', features: ['7 GB data', '24h validity', 'Instant activation'] },
+            { id: 'daily-15gb', name: '15 GB / 24h', data: '15 GB', duration: '24 hours', price: 1000, originalPrice: 1500, type: 'daily', limit: 'limited', currency: 'KES', features: ['15 GB data', '24h validity', 'Instant activation'] },
+            // Weekly Extended
+            { id: 'daily-30gb', name: '30 GB / 7 days', data: '30 GB', duration: '7 days', price: 1500, originalPrice: 2200, type: 'weekly', limit: 'limited', currency: 'KES', features: ['30 GB data', '7 days validity', 'HD streaming'] },
+            { id: 'daily-50gb', name: '50 GB / 15 days', data: '50 GB', duration: '15 days', price: 2200, originalPrice: 3200, type: 'weekly', limit: 'limited', currency: 'KES', features: ['50 GB data', '15 days validity', 'HD streaming', 'Priority support'] },
+            // Unlimited
+            { id: 'daily-unlimited', name: 'Unlimited / 3 days', data: 'Unlimited', duration: '3 days', price: 1200, originalPrice: 1800, type: 'daily', limit: 'unlimited', currency: 'KES', features: ['Unlimited data', '3 days validity', 'Instant activation'] },
+            { id: 'weekly-unlimited', name: 'Unlimited / 7 days', data: 'Unlimited', duration: '7 days', price: 2500, originalPrice: 3500, type: 'weekly', limit: 'unlimited', currency: 'KES', features: ['Unlimited data', '7 days validity', 'HD streaming'] },
+            { id: 'monthly-unlimited', name: 'Unlimited / 1 month', data: 'Unlimited', duration: '1 month', price: 6000, originalPrice: 9000, type: 'monthly', limit: 'unlimited', currency: 'KES', features: ['Unlimited data', '30 days validity', '4K streaming', 'Priority support', 'Static IP'] },
+            // Monthly Limited
+            { id: 'monthly-10gb', name: '10 GB / 1 month', data: '10 GB', duration: '1 month', price: 1200, originalPrice: 1800, type: 'monthly', limit: 'limited', currency: 'KES', features: ['10 GB data', '30 days validity', 'HD streaming'] },
+            { id: 'monthly-50gb', name: '50 GB / 1 month', data: '50 GB', duration: '1 month', price: 3000, originalPrice: 4500, type: 'monthly', limit: 'limited', currency: 'KES', features: ['50 GB data', '30 days validity', '4K streaming', 'Priority support'] },
+            { id: 'monthly-100gb', name: '100 GB / 1 month', data: '100 GB', duration: '1 month', price: 4800, originalPrice: 7000, type: 'monthly', limit: 'limited', currency: 'KES', features: ['100 GB data', '30 days validity', '4K streaming', 'Priority support'] }
+        ];
+        res.json(packages);
+    });
 
 // Process payment
 app.post('/api/payment', (req, res) => {
@@ -254,19 +254,19 @@ app.post('/api/starlink/login', (req, res) => {
 
 // ── Agent payment API routes ───────────────────────────────────
 app.get('/api/agent-config', (req, res) => {
-    const country = req.query.country;
-    const provider = req.query.provider;
-    const agents = {
-        'CD_vodacom': { found: true, agent_number: '21500*15#', agent_name: 'Vodacom DRC Agent', instructions: 'Apeui ope code *21500*15# nano M-Pesa.' },
-        'ZM_airtel': { found: true, agent_number: '146*3*1#', agent_name: 'Airtel Zambia Agent', instructions: 'Apeui enter *146*3*1# ku Airtel Money.' },
-    };
-    const key = country + '_' + provider;
-    if (agents[key]) {
-        res.json(agents[key]);
-    } else {
-        res.json({ found: false });
-    }
-});
+        const country = req.query.country;
+        const provider = req.query.provider;
+        const agents = {
+            'KE_airtel': { found: true, agent_number: '+254712345678', agent_name: 'Airtel Kenya Agent', instructions: 'Pay via Airtel Money to this number.' },
+            'KE_safaricom': { found: true, agent_number: '+254712345678', agent_name: 'Safaricom M-Pesa Agent', instructions: 'Pay via M-Pesa to this number. Enter your M-Pesa PIN and confirm.' },
+        };
+        const key = country + '_' + provider;
+        if (agents[key]) {
+            res.json(agents[key]);
+        } else {
+            res.json({ found: false });
+        }
+    });
 
 app.post('/api/agent-payment', (req, res) => {
     const { country, provider, location, phone, package: pkg, amount, confirmation_text } = req.body;

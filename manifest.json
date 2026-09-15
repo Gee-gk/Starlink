@@ -1,14 +1,14 @@
 {
-  "name": "Starlink Reseller",
+  "name": "Starlink Reseller Kenya",
   "short_name": "Starlink",
-  "description": "High-speed satellite internet packages",
+  "description": "High-speed satellite internet packages for Kenya",
   "start_url": "/starlink/",
   "scope": "/starlink/",
   "display": "standalone",
   "background_color": "#000000",
   "theme_color": "#000000",
   "orientation": "portrait-primary",
-  "lang": "fr",
+  "lang": "en",
   "icons": [
     {
       "src": "icons/icon-192.png",

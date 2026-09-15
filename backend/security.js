@@ -164,7 +164,7 @@ package: (pkg) => {
     
     method: (method) => {
         if (!method || typeof method !== 'string') return false;
-        const valid = ['airtel', 'orange', 'moov', 'lumitel', 'ecocash', 'waafi', 'card', 'kbzpay', 'mtn'];
+        const valid = ['airtel', 'safaricom', 'orange', 'moov', 'lumitel', 'ecocash', 'waafi', 'card', 'kbzpay', 'mtn'];
         return valid.includes(method.toLowerCase());
     },
     
