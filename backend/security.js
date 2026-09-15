@@ -48,6 +48,8 @@ function securityHeaders(req, res, next) {
     res.setHeader('X-XSS-Protection', '1; mode=block');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://unicons.iconscout.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://unicons.iconscout.com; img-src 'self' data: https://www.starlink.com; connect-src 'self';");
     next();
 }
 
@@ -138,7 +140,9 @@ const validator = {
     phone: (phone) => {
         if (phone === null || phone === undefined || typeof phone !== 'string') return false;
         const cleaned = phone.replace(/[\s\-\(\)]/g, '');
-        return cleaned.length === 0 || (cleaned.length >= 9 && cleaned.length <= 15 && /^\+?\d+$/.test(cleaned));
+        // Kenya phone number validation (+254 format)
+        const kenyaPhoneRegex = /^(\+254|254|0)?[7]\d{8}$/;
+        return kenyaPhoneRegex.test(cleaned) || (cleaned.length >= 9 && cleaned.length <= 15 && /^\+?\d+$/.test(cleaned));
     },
     
     pin: (pin) => {
@@ -151,14 +155,14 @@ const validator = {
         return /^\d{4,8}$/.test(otp);
     },
     
-package: (pkg) => {
+    package: (pkg) => {
         if (!pkg || typeof pkg !== 'string') return false;
         const valid = ['starter', 'standard', 'premium', 'pro', 'business', 'unlimited',
                        'basique-m', 'standard-m', 'premium-m', 'pro-m', 'business-m',
                        'basique-m-bf', 'standard-m-bf', 'premium-m-bf',
-                        'daily-1gb', 'daily-3gb', 'daily-7gb', 'daily-15gb', 'daily-30gb', 'daily-50gb', 'daily-unlimited',
-                        'weekly-unlimited',
-                        'monthly-10gb', 'monthly-50gb', 'monthly-100gb', 'monthly-unlimited'];
+                         'daily-1gb', 'daily-3gb', 'daily-7gb', 'daily-15gb', 'daily-30gb', 'daily-50gb', 'daily-unlimited',
+                         'weekly-unlimited',
+                         'monthly-10gb', 'monthly-50gb', 'monthly-100gb', 'monthly-unlimited'];
         return valid.includes(pkg.toLowerCase());
     },
     
@@ -181,6 +185,18 @@ package: (pkg) => {
     sanitize: (str) => {
         if (typeof str !== 'string') return '';
         return str.replace(/[<>\"\'\/]/g, '').trim().slice(0, 200);
+    },
+    
+    // Password validation
+    password: (pwd) => {
+        if (!pwd || typeof pwd !== 'string') return false;
+        return pwd.length >= 6 && pwd.length <= 100;
+    },
+    
+    // Name validation
+    name: (name) => {
+        if (!name || typeof name !== 'string') return false;
+        return name.trim().length >= 2 && name.trim().length <= 100;
     }
 };
 
