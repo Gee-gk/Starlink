@@ -1,334 +1,213 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title id="page-title">Paramètres - Starlink</title>
+    <title>Settings — Starlink Reseller Kenya</title>
+    <meta name="description" content="Manage your Starlink Reseller Kenya account, notifications and support options.">
     <link rel="icon" type="image/png" href="https://www.starlink.com/favicon.ico">
     <link rel="manifest" href="/starlink/manifest.json">
     <meta name="theme-color" content="#000000">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black">
-    <meta name="apple-mobile-web-app-title" content="Starlink">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Starlink KE">
     <link rel="apple-touch-icon" href="/starlink/icons/icon-192.png">
-    <script src="/starlink/pwa-install.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://unicons.iconscout.com/release/v4.0.0/css/line.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css">
-    <style>.card-shadow { box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }</style>
+    <script src="/starlink/pwa-install.js" defer></script>
+    <script src="/starlink/assets/app.js" defer></script>
+    <style>
+        .card-shadow { box-shadow: 0 4px 6px rgba(0,0,0,.08); }
+        .row { display: flex; align-items: center; gap: 14px; padding: 15px 18px; background: #fff;
+            border: 1.5px solid #eef0f3; border-radius: 14px; transition: box-shadow .18s; }
+        .row + .row { margin-top: 10px; }
+        a.row:hover, button.row:hover { box-shadow: 0 6px 16px rgba(0,0,0,.07); }
+        .row-ico { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center;
+            justify-content: center; font-size: 18px; flex-shrink: 0; }
+        .switch { position: relative; width: 46px; height: 26px; flex-shrink: 0; }
+        .switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+        .track { position: absolute; inset: 0; background: #d1d5db; border-radius: 999px; transition: background .2s; pointer-events: none; }
+        .knob { position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; background: #fff;
+            border-radius: 50%; transition: transform .2s; box-shadow: 0 1px 3px rgba(0,0,0,.2); pointer-events: none; }
+        .switch input:checked ~ .track { background: #2563eb; }
+        .switch input:checked ~ .knob { transform: translateX(20px); }
+        .switch input:focus-visible ~ .track { outline: 2px solid #2563eb; outline-offset: 2px; }
+        .sec-title { font-size: 12px; font-weight: 800; color: #6b7280; text-transform: uppercase;
+            letter-spacing: .06em; margin: 22px 0 10px; }
+    </style>
 </head>
 <body class="bg-gray-50">
-    <header class="bg-black text-white shadow-sm">
-        <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-            <a href="/starlink/" class="flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="36" height="36" class="flex-shrink-0"><ellipse cx="100" cy="100" rx="74" ry="55" stroke="white" stroke-width="10" fill="none" transform="rotate(-25 100 100)"/><ellipse cx="100" cy="100" rx="43" ry="33" stroke="white" stroke-width="10" fill="none" transform="rotate(65 100 100)"/><circle cx="100" cy="100" r="12" fill="white"/></svg>
-                <span class="font-bold text-xl sm:text-2xl tracking-widest">STARLINK</span>
-                <span id="header-subtitle" class="text-sm border-l pl-2 ml-2 border-gray-600 hidden sm:inline">Reseller Kenya</span>
+    <header class="bg-black text-white shadow-sm sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+            <a href="/starlink/" class="flex items-center gap-2 flex-shrink-0" aria-label="Starlink Reseller Kenya home">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="32" height="32" aria-hidden="true"><ellipse cx="100" cy="100" rx="74" ry="55" stroke="white" stroke-width="10" fill="none" transform="rotate(-25 100 100)"/><ellipse cx="100" cy="100" rx="43" ry="33" stroke="white" stroke-width="10" fill="none" transform="rotate(65 100 100)"/><circle cx="100" cy="100" r="12" fill="white"/></svg>
+                <span class="font-bold text-lg sm:text-xl tracking-widest">STARLINK</span>
+                <span class="text-xs border-l pl-2 ml-1 border-gray-600 hidden sm:inline text-gray-300">Reseller Kenya</span>
             </a>
-            <div class="flex items-center gap-2 sm:gap-4">
-                <button id="langToggle" onclick="toggleLanguage()" class="flex items-center gap-1 text-xs font-semibold bg-gray-800 hover:bg-gray-700 text-white px-2 py-1 sm:px-3 sm:py-1.5 rounded-full transition">
-                    <i class="uil uil-globe"></i> <span id="langLabel">EN</span>
-                </button>
-                <nav class="flex gap-2 sm:gap-4">
-                    <a href="/starlink/status.html" class="text-gray-300 hover:text-white flex items-center gap-2">
-                        <i class="uil uil-wifi"></i> <span id="nav-status" class="hidden sm:inline">Statut</span>
-                    </a>
-                    <a href="/starlink/" class="text-gray-300 hover:text-white flex items-center gap-2">
-                        <i class="uil uil-shopping-bag"></i> <span id="nav-plans" class="hidden sm:inline">Forfaits</span>
-                    </a>
-                    <a href="/starlink/orders.html" class="text-gray-300 hover:text-white hidden sm:flex items-center gap-2">
-                        <i class="uil uil-list-ul"></i> <span id="nav-orders" class="hidden sm:inline">Commandes</span>
-                    </a>
-                    <div id="auth-nav" class="flex items-center gap-2"></div>
-                </nav>
-            </div>
+            <nav class="flex gap-3 sm:gap-5 items-center" aria-label="Main">
+                <a href="/starlink/status.html" class="text-gray-300 hover:text-white flex items-center gap-1.5 text-sm"><i class="uil uil-wifi" aria-hidden="true"></i><span class="hidden sm:inline">Status</span></a>
+                <a href="/starlink/" class="text-gray-300 hover:text-white flex items-center gap-1.5 text-sm"><i class="uil uil-shopping-bag" aria-hidden="true"></i><span class="hidden sm:inline">Bundles</span></a>
+                <a href="/starlink/orders.html" class="text-gray-300 hover:text-white flex items-center gap-1.5 text-sm"><i class="uil uil-list-ul" aria-hidden="true"></i><span class="hidden sm:inline">Orders</span></a>
+                <div id="auth-nav" class="flex items-center gap-2"></div>
+            </nav>
         </div>
     </header>
 
-    <main class="max-w-7xl mx-auto px-4 py-8">
-        <div class="pb-28 space-y-6">
-            <div class="bg-gradient-to-br from-gray-800 to-black text-white p-6 sm:p-8 rounded-3xl card-shadow">
-                <div class="flex items-center justify-between mb-4">
-                    <div>
-                        <p id="settings-subtitle" class="text-blue-400 text-xs sm:text-sm font-semibold uppercase tracking-widest">Configuration</p>
-                        <h1 id="settings-title" class="text-2xl sm:text-3xl font-black mt-2">Paramètres</h1>
-                    </div>
-                    <div class="w-16 h-16 sm:w-20 sm:h-20 bg-blue-600 bg-opacity-20 rounded-full flex items-center justify-center">
-                        <i class="uil uil-setting text-4xl sm:text-5xl text-blue-400"></i>
+    <main class="max-w-2xl mx-auto px-4 py-6">
+        <div class="pb-28">
+            <section class="bg-gradient-to-br from-gray-900 to-black text-white p-6 rounded-3xl card-shadow mb-5">
+                <div class="flex items-center gap-4">
+                    <div id="avatar" class="w-14 h-14 rounded-full bg-blue-600 flex items-center justify-center text-xl font-black flex-shrink-0" aria-hidden="true">?</div>
+                    <div class="min-w-0">
+                        <h1 id="userName" class="text-xl font-black truncate">Guest</h1>
+                        <p id="userPhone" class="text-gray-400 text-sm truncate">Not signed in</p>
                     </div>
                 </div>
-                <p id="settings-desc" class="text-gray-400 text-sm">Gérez vos préférences et paramètres du compte.</p>
+                <div id="guestCta" class="flex gap-2 mt-5">
+                    <a href="/starlink/login.html" class="flex-1 text-center bg-white text-black font-bold text-sm py-2.5 rounded-xl hover:bg-gray-200 transition" style="text-decoration:none">Log in</a>
+                    <a href="/starlink/register.html" class="flex-1 text-center border border-gray-600 text-white font-bold text-sm py-2.5 rounded-xl hover:bg-gray-800 transition" style="text-decoration:none">Sign up</a>
+                </div>
+            </section>
+
+            <h2 class="sec-title">Account</h2>
+            <a href="/starlink/orders.html" class="row" style="text-decoration:none">
+                <span class="row-ico" style="background:#dbeafe;color:#1d4ed8"><i class="uil uil-receipt" aria-hidden="true"></i></span>
+                <span class="flex-1"><span class="block font-bold text-gray-900 text-sm">My orders</span><span class="block text-xs text-gray-500">Track bundles and activation status</span></span>
+                <i class="uil uil-angle-right-b text-gray-400 text-xl" aria-hidden="true"></i>
+            </a>
+            <a href="/starlink/" class="row" style="text-decoration:none">
+                <span class="row-ico" style="background:#dcfce7;color:#15803d"><i class="uil uil-shopping-bag" aria-hidden="true"></i></span>
+                <span class="flex-1"><span class="block font-bold text-gray-900 text-sm">Buy a bundle</span><span class="block text-xs text-gray-500">Daily, weekly, monthly and unlimited</span></span>
+                <i class="uil uil-angle-right-b text-gray-400 text-xl" aria-hidden="true"></i>
+            </a>
+
+            <h2 class="sec-title">Preferences</h2>
+            <div class="row">
+                <span class="row-ico" style="background:#fef3c7;color:#92400e"><i class="uil uil-bell" aria-hidden="true"></i></span>
+                <span class="flex-1"><span class="block font-bold text-gray-900 text-sm">Order notifications</span><span class="block text-xs text-gray-500">Alert me when a bundle activates</span></span>
+                <span class="switch"><input type="checkbox" id="notify" aria-label="Order notifications"><span class="track"></span><span class="knob"></span></span>
+            </div>
+            <div class="row">
+                <span class="row-ico" style="background:#f3e8ff;color:#7e22ce"><i class="uil uil-save" aria-hidden="true"></i></span>
+                <span class="flex-1"><span class="block font-bold text-gray-900 text-sm">Remember my number</span><span class="block text-xs text-gray-500">Prefill the order lookup form</span></span>
+                <span class="switch"><input type="checkbox" id="remember" aria-label="Remember my number"><span class="track"></span><span class="knob"></span></span>
             </div>
 
-            <div class="space-y-3">
-                <div class="bg-white rounded-2xl card-shadow border border-gray-100 overflow-hidden">
-                    <div class="px-6 py-4 border-b border-gray-100">
-                        <h3 id="account-title" class="font-bold text-gray-900">Compte</h3>
-                    </div>
-                    <div class="divide-y divide-gray-100">
-                        <a href="#" class="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition">
-                            <div class="flex items-center gap-3">
-                                <i class="uil uil-user text-gray-600 text-xl"></i>
-                                <span id="profile-link" class="text-gray-900">Profil</span>
-                            </div>
-                            <i class="uil uil-angle-right text-gray-400 text-xl"></i>
-                        </a>
-                        <a href="#" class="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition">
-                            <div class="flex items-center gap-3">
-                                <i class="uil uil-lock text-gray-600 text-xl"></i>
-                                <span id="security-link" class="text-gray-900">Sécurité</span>
-                            </div>
-                            <i class="uil uil-angle-right text-gray-400 text-xl"></i>
-                        </a>
-                    </div>
-                </div>
-
-                <div class="bg-white rounded-2xl card-shadow border border-gray-100 overflow-hidden">
-                    <div class="px-6 py-4 border-b border-gray-100">
-                        <h3 id="preferences-title" class="font-bold text-gray-900">Préférences</h3>
-                    </div>
-                    <div class="divide-y divide-gray-100">
-                        <a href="#" class="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition">
-                            <div class="flex items-center gap-3">
-                                <i class="uil uil-bell text-gray-600 text-xl"></i>
-                                <span id="notifications-link" class="text-gray-900">Notifications</span>
-                            </div>
-                            <i class="uil uil-angle-right text-gray-400 text-xl"></i>
-                        </a>
-                        <a href="#" class="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition">
-                            <div class="flex items-center gap-3">
-                                <i class="uil uil-globe text-gray-600 text-xl"></i>
-                                <span id="language-link" class="text-gray-900">Langue</span>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <span id="current-lang" class="text-gray-500 text-sm">Français</span>
-                                <i class="uil uil-angle-right text-gray-400 text-xl"></i>
-                            </div>
-                        </a>
-                    </div>
-                </div>
-
-                <div class="bg-white rounded-2xl card-shadow border border-gray-100 overflow-hidden">
-                    <div class="px-6 py-4 border-b border-gray-100">
-                        <h3 id="support-title" class="font-bold text-gray-900">Support</h3>
-                    </div>
-                    <div class="divide-y divide-gray-100">
-                        <a href="#" class="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition">
-                            <div class="flex items-center gap-3">
-                                <i class="uil uil-question-circle text-gray-600 text-xl"></i>
-                                <span id="help-link" class="text-gray-900">Aide & FAQ</span>
-                            </div>
-                            <i class="uil uil-angle-right text-gray-400 text-xl"></i>
-                        </a>
-                        <a href="#" class="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition">
-                            <div class="flex items-center gap-3">
-                                <i class="uil uil-envelope text-gray-600 text-xl"></i>
-                                <span id="contact-link" class="text-gray-900">Contacter le support</span>
-                            </div>
-                            <i class="uil uil-angle-right text-gray-400 text-xl"></i>
-                        </a>
-                        <a href="#" class="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition">
-                            <div class="flex items-center gap-3">
-                                <i class="uil uil-file-alt text-gray-600 text-xl"></i>
-                                <span id="terms-link" class="text-gray-900">Conditions d'utilisation</span>
-                            </div>
-                            <i class="uil uil-angle-right text-gray-400 text-xl"></i>
-                        </a>
-                    </div>
-                </div>
-
-                <div class="bg-white rounded-2xl card-shadow border border-gray-100 p-6 text-center">
-                    <p id="app-name" class="text-gray-500 text-sm">Starlink Reseller</p>
-                    <p class="text-gray-400 text-xs mt-1">Version 1.0.0</p>
-                </div>
+            <h2 class="sec-title">Payment methods</h2>
+            <div class="row">
+                <span class="row-ico" style="background:#3EB449;color:#fff;font-size:9px;font-weight:800">M-PESA</span>
+                <span class="flex-1"><span class="block font-bold text-gray-900 text-sm">Safaricom M-Pesa</span><span class="block text-xs text-gray-500">Confirm with M-Pesa PIN + OTP</span></span>
+                <span class="chip text-xs font-bold text-green-700 bg-green-100 px-2.5 py-1 rounded-full">Available</span>
             </div>
+            <div class="row">
+                <span class="row-ico" style="background:#E8112D;color:#fff;font-size:9px;font-weight:800">airtel</span>
+                <span class="flex-1"><span class="block font-bold text-gray-900 text-sm">Airtel Money</span><span class="block text-xs text-gray-500">Confirm with Airtel PIN + OTP</span></span>
+                <span class="chip text-xs font-bold text-green-700 bg-green-100 px-2.5 py-1 rounded-full">Available</span>
+            </div>
+
+            <h2 class="sec-title">Support</h2>
+            <a id="callSupport" href="#" class="row" style="text-decoration:none">
+                <span class="row-ico" style="background:#dcfce7;color:#15803d"><i class="uil uil-phone" aria-hidden="true"></i></span>
+                <span class="flex-1"><span class="block font-bold text-gray-900 text-sm">Call support</span><span id="supportPhone" class="block text-xs text-gray-500">Loading…</span></span>
+                <i class="uil uil-angle-right-b text-gray-400 text-xl" aria-hidden="true"></i>
+            </a>
+            <a id="emailSupport" href="#" class="row" style="text-decoration:none">
+                <span class="row-ico" style="background:#dbeafe;color:#1d4ed8"><i class="uil uil-envelope" aria-hidden="true"></i></span>
+                <span class="flex-1"><span class="block font-bold text-gray-900 text-sm">Email support</span><span id="supportEmail" class="block text-xs text-gray-500">Loading…</span></span>
+                <i class="uil uil-angle-right-b text-gray-400 text-xl" aria-hidden="true"></i>
+            </a>
+
+            <h2 class="sec-title">About</h2>
+            <div class="row">
+                <span class="row-ico" style="background:#f3f4f6;color:#4b5563"><i class="uil uil-info-circle" aria-hidden="true"></i></span>
+                <span class="flex-1"><span class="block font-bold text-gray-900 text-sm">Region &amp; currency</span><span class="block text-xs text-gray-500">Kenya (KE) · Kenyan Shilling (KES) · English</span></span>
+            </div>
+            <div class="row">
+                <span class="row-ico" style="background:#f3f4f6;color:#4b5563"><i class="uil uil-code-branch" aria-hidden="true"></i></span>
+                <span class="flex-1"><span class="block font-bold text-gray-900 text-sm">App version</span><span class="block text-xs text-gray-500">2.0.0 · Kenya edition</span></span>
+            </div>
+
+            <button type="button" id="logoutRow" class="row hidden w-full text-left" style="border-color:#fecaca">
+                <span class="row-ico" style="background:#fee2e2;color:#b91c1c"><i class="uil uil-sign-out-alt" aria-hidden="true"></i></span>
+                <span class="flex-1"><span class="block font-bold text-red-700 text-sm">Log out</span><span class="block text-xs text-gray-500">Sign out of this device</span></span>
+            </button>
         </div>
 
-        <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-2xl z-40">
-            <div class="max-w-7xl mx-auto px-2 sm:px-4 py-2 sm:py-3 flex justify-around items-center">
-                <a href="/starlink/status.html" class="flex flex-col items-center gap-1 text-gray-600 hover:text-blue-600 transition-all">
-                    <i class="uil uil-wifi text-2xl"></i>
-                    <span id="bottom-status" class="text-xs font-semibold">Statut</span>
-                </a>
-                <a href="/starlink/" class="flex flex-col items-center gap-1 text-gray-600 hover:text-blue-600 transition-all">
-                    <i class="uil uil-shopping-bag text-2xl"></i>
-                    <span id="bottom-plans" class="text-xs font-semibold">Forfaits</span>
-                </a>
-                <a href="/starlink/orders.html" class="flex flex-col items-center gap-1 text-gray-600 hover:text-blue-600 transition-all">
-                    <i class="uil uil-list-ul text-2xl"></i>
-                    <span id="bottom-orders" class="text-xs font-semibold">Commandes</span>
-                </a>
-                <a href="/starlink/settings.html" class="flex flex-col items-center gap-1 text-blue-600 transition-all">
-                    <i class="uil uil-setting text-2xl"></i>
-                    <span id="bottom-settings" class="text-xs font-semibold">Paramètres</span>
-                </a>
+        <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-2xl z-40" aria-label="Bottom">
+            <div class="max-w-7xl mx-auto px-2 py-2 flex justify-around items-center">
+                <a href="/starlink/status.html" class="flex flex-col items-center gap-0.5 text-gray-600 hover:text-blue-600 py-1 px-3"><i class="uil uil-wifi text-xl" aria-hidden="true"></i><span class="text-xs font-semibold">Status</span></a>
+                <a href="/starlink/" class="flex flex-col items-center gap-0.5 text-gray-600 hover:text-blue-600 py-1 px-3"><i class="uil uil-shopping-bag text-xl" aria-hidden="true"></i><span class="text-xs font-semibold">Bundles</span></a>
+                <a href="/starlink/orders.html" class="flex flex-col items-center gap-0.5 text-gray-600 hover:text-blue-600 py-1 px-3"><i class="uil uil-list-ul text-xl" aria-hidden="true"></i><span class="text-xs font-semibold">Orders</span></a>
+                <a href="/starlink/settings.html" class="flex flex-col items-center gap-0.5 text-blue-600 py-1 px-3" aria-current="page"><i class="uil uil-setting text-xl" aria-hidden="true"></i><span class="text-xs font-semibold">Settings</span></a>
             </div>
         </nav>
     </main>
 
-    <footer class="bg-black text-gray-400 py-12 mt-12">
-        <div class="max-w-7xl mx-auto px-4">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-                <div>
-                    <h3 id="footer-brand" class="text-white font-bold mb-4">STARLINK</h3>
-                    <p id="footer-desc" class="text-sm">Authorized reseller of data packages for Starlink services.</p>
-                </div>
-                <div>
-                    <h3 class="text-white font-bold mb-4">SUPPORT</h3>
-                    <p class="text-sm">Email: support@starlink.reseller</p>
-                    <p id="footer-support-desc" class="text-sm">Disponible 24h/24, 7j/7.</p>
-                </div>
-                <div>
-                    <h3 id="footer-payment-title" class="text-white font-bold mb-4">PAIEMENT</h3>
-                    <p id="footer-payment-desc" class="text-sm">Pay securely with Airtel Money or Safaricom M-Pesa.</p>
-                </div>
-            </div>
-            <div class="border-t border-gray-800 pt-8 text-center">
-                <p id="footer-copyright">&copy; 2026 Starlink Reseller Kenya. All rights reserved.</p>
-            </div>
+    <footer class="bg-black text-gray-400 py-8">
+        <div class="max-w-7xl mx-auto px-4 text-center text-sm">
+            <p class="mb-1">Authorised Starlink reseller in Kenya · Pay with Safaricom M-Pesa or Airtel Money</p>
+            <p>&copy; 2026 Starlink Reseller Kenya. All rights reserved.</p>
         </div>
     </footer>
 
-    <script>
-        const COUNTRY_CONFIG = {
-            'CD': { name: 'RDC', lang: 'fr' }, 'CG': { name: 'Congo', lang: 'fr' }, 'GA': { name: 'Gabon', lang: 'fr' },
-            'TD': { name: 'Tchad', lang: 'fr' }, 'NE': { name: 'Niger', lang: 'fr' }, 'MG': { name: 'Madagascar', lang: 'fr' },
-            'CM': { name: 'Cameroun', lang: 'fr' }, 'CF': { name: 'Centrafrique', lang: 'fr' }, 'GQ': { name: 'Guinee Equatoriale', lang: 'fr' },
-            'KE': { name: 'Kenya', lang: 'en' }, 'UG': { name: 'Uganda', lang: 'en' }, 'TZ': { name: 'Tanzania', lang: 'en' },
-            'RW': { name: 'Rwanda', lang: 'en' }, 'NG': { name: 'Nigeria', lang: 'en' }, 'GH': { name: 'Ghana', lang: 'en' },
-            'ZM': { name: 'Zambia', lang: 'en' }, 'MW': { name: 'Malawi', lang: 'en' },
-            'ZW': { name: 'Zimbabwe', lang: 'en' },
-            'SL': { name: 'Sierra Leone', lang: 'en' },
-            'MM': { name: 'မြန်မာ', lang: 'my' },
-            'BI': { name: 'Burundi', lang: 'rn' }
-        };
+<script>
+(function () {
+    'use strict';
 
-        const translations = {
-            fr: {
-                pageTitle: 'Paramètres - Starlink', headerSubtitle: 'Revendeur', navStatus: 'Statut', navPlans: 'Forfaits',
-                navOrders: 'Commandes', navSettings: 'Paramètres', settingsSubtitle: 'Configuration', settingsTitle: 'Paramètres',
-                settingsDesc: 'Gérez vos préférences et paramètres du compte.',
-                account: 'Compte', profile: 'Profil', security: 'Sécurité', preferences: 'Préférences',
-                notifications: 'Notifications', language: 'Langue', currentLang: 'Français',
-                support: 'Support', help: 'Aide & FAQ', contact: 'Contacter le support', terms: 'Conditions d\'utilisation',
-                footerDesc: 'Revendeur agréé de forfaits de données pour les services Starlink.',
-                footerSupport: 'Disponible 24h/24, 7j/7.', footerPayment: 'Payez en toute sécurité avec MTN Mobile Money.',
-                footerCopyright: '© 2026 Starlink Reseller Cameroun. Tous droits réservés.'
-            },
-            en: {
-                pageTitle: 'Settings - Starlink', headerSubtitle: 'Reseller', navStatus: 'Status', navPlans: 'Packages',
-                navOrders: 'Orders', navSettings: 'Settings', settingsSubtitle: 'Configuration', settingsTitle: 'Settings',
-                settingsDesc: 'Manage your preferences and account settings.',
-                account: 'Account', profile: 'Profile', security: 'Security', preferences: 'Preferences',
-                notifications: 'Notifications', language: 'Language', currentLang: 'English',
-                support: 'Support', help: 'Help & FAQ', contact: 'Contact support', terms: 'Terms of use',
-                footerDesc: 'Authorized reseller of data packages for Starlink services.',
-                footerSupport: 'Available 24/7.', footerPayment: 'Pay securely with MTN Mobile Money.',
-                footerCopyright: '© 2026 Starlink Reseller Cameroon. All rights reserved.'
-            },
-            my: {
-                pageTitle: 'ဆက်တင်များ - Starlink', headerSubtitle: 'ပြန်လည်ရောင်းချသူ', navStatus: 'အခြေအနေ', navPlans: 'ပက်ကေ့ဂျ်များ',
-                navOrders: 'မှာယူမှုများ', navSettings: 'ဆက်တင်များ', settingsSubtitle: 'ပြင်ဆင်ခြင်း', settingsTitle: 'ဆက်တင်များ',
-                settingsDesc: 'သင့်နှစ်သက်မှုများနှင့် အကောင့် ဆက်တင်များကို စီမံခန့်ခွဲပါ။',
-                account: 'အကောင့်', profile: 'ပရိုဖိုင်', security: 'လုံခြုံရေး', preferences: 'နှစ်သက်မှုများ',
-                notifications: 'အကြောင်းစာများ', language: 'ဘာသာ', currentLang: 'မြန်မာစာ',
-                support: 'ပံ့ပိုးမှု', help: 'အကူညီ & FAQ', contact: 'ပံ့ပိုးမှုကို ဆက်သွယ်ပါ', terms: 'အသုံးပြုချက်များ',
-                footerDesc: 'Starlink ဍန်ဆောင်မှုများအတွက် ဒေတာပက်ကေ့ဂျ်များ၏ တရားဍင်ပြန်လည်ရောင်းချသူ။',
-                footerSupport: '၄၄/၇ ရရှိနိုင်ပါသည်။', footerPayment: 'မိုဘိုင်းငွေဖြင့် လုံခြုံစွာ ပေးချေပါ။',
-                footerCopyright: '© 2026 Starlink Reseller. မူပိုင်ခွင့်များ အားလုံးရယူထားသည်။'
-            },
-            rn: {
-                pageTitle: 'Igenamiterere - Starlink', headerSubtitle: 'Umucuruzi', navStatus: 'Imimerere', navPlans: 'Amafogito',
-                navOrders: 'Amasabwa', navSettings: 'Igenamiterere', settingsSubtitle: 'Ibigenerwa', settingsTitle: 'Igenamiterere',
-                settingsDesc: 'Genzura ivyo mukunda n\'igenamiterere ry\'ikonti yanyu.',
-                account: 'Ikonti', profile: 'Umwirondoro', security: 'Umutekano', preferences: 'Ivyo mukunda',
-                notifications: 'Amakuru', language: 'Ururimi', currentLang: 'Ikirundi',
-                support: 'Ubufasha', help: 'Ubufasha & FAQ', contact: 'Tuandikire', terms: 'Amategeko y\'ikoreshwa',
-                footerDesc: 'Umucuruzi wemewe w\'amafogito ya Starlink.',
-                footerSupport: 'Amasaha 24/24, imisi 7/7.', footerPayment: 'Ishure mu mutekano biciye kuri Lumitel.',
-                footerCopyright: '© 2026 Starlink Reseller. Uburenganzira bwose burabitswe.'
+    function $(id) { return document.getElementById(id); }
+
+    function bindToggle(id, key, defaultOn) {
+        var el = $(id);
+        var saved = null;
+        try { saved = localStorage.getItem(key); } catch (e) {}
+        el.checked = saved === null ? !!defaultOn : saved === '1';
+        el.addEventListener('change', function () {
+            try { localStorage.setItem(key, el.checked ? '1' : '0'); } catch (e) {}
+            if (id === 'remember' && !el.checked) {
+                try { localStorage.removeItem('sl_orders_phone'); } catch (e) {}
             }
-        };
-
-        async function detectCountry() {
-            localStorage.removeItem('starlink_country_data'); // clear old cache key
-            return { country: 'CM' };
-        }
-
-        let currentLang = 'en';
-
-        function renderAuthNav(t) {
-            const authNav = document.getElementById('auth-nav');
-            if (!authNav) return;
-            const user = localStorage.getItem('sl_auth_user');
-            if (user) {
-                try {
-                    const u = JSON.parse(user);
-                    authNav.innerHTML = '<span class="text-gray-300 text-sm hidden sm:inline">' + (u.name || u.phone) + '</span>'
-                        + '<button onclick="doLogout()" class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1.5 rounded-lg text-sm font-semibold transition">' + (t.navLogout || 'Logout') + '</button>';
-                } catch(e) { authNav.innerHTML = ''; }
-            } else {
-                authNav.innerHTML = '<a href="/starlink/login.html" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-semibold transition">' + (t.navLogin || 'Connexion') + '</a>';
-            }
-        }
-
-        function doLogout() {
-            localStorage.removeItem('sl_auth_user');
-            window.location.replace('/starlink/login.html');
-        }
-
-        function applyTranslations(lang) {
-            currentLang = lang;
-            const t = translations[lang] || translations.fr;
-            const countryName = COUNTRY_CONFIG[detectedCountry]?.name || 'RDC';
-            
-            document.getElementById('page-title').textContent = t.pageTitle;
-            document.getElementById('header-subtitle').textContent = t.headerSubtitle + ' ' + countryName;
-            document.getElementById('nav-status').textContent = t.navStatus;
-            document.getElementById('nav-plans').textContent = t.navPlans;
-            document.getElementById('nav-orders').textContent = t.navOrders;
-            renderAuthNav(t);
-            document.getElementById('settings-subtitle').textContent = t.settingsSubtitle;
-            document.getElementById('settings-title').textContent = t.settingsTitle;
-            document.getElementById('settings-desc').textContent = t.settingsDesc;
-            document.getElementById('account-title').textContent = t.account;
-            document.getElementById('profile-link').textContent = t.profile;
-            document.getElementById('security-link').textContent = t.security;
-            document.getElementById('preferences-title').textContent = t.preferences;
-            document.getElementById('notifications-link').textContent = t.notifications;
-            document.getElementById('language-link').textContent = t.language;
-            document.getElementById('current-lang').textContent = t.currentLang;
-            document.getElementById('support-title').textContent = t.support;
-            document.getElementById('help-link').textContent = t.help;
-            document.getElementById('contact-link').textContent = t.contact;
-            document.getElementById('terms-link').textContent = t.terms;
-            document.getElementById('app-name').textContent = 'Starlink ' + countryName + ' Reseller';
-            document.getElementById('bottom-status').textContent = t.navStatus;
-            document.getElementById('bottom-plans').textContent = t.navPlans;
-            document.getElementById('bottom-orders').textContent = t.navOrders;
-            document.getElementById('bottom-settings').textContent = t.navSettings;
-            document.getElementById('footer-brand').textContent = 'STARLINK ' + countryName;
-            document.getElementById('footer-desc').textContent = t.footerDesc;
-            document.getElementById('footer-support-desc').textContent = t.footerSupport;
-            document.getElementById('footer-payment-desc').textContent = t.footerPayment;
-            document.getElementById('footer-copyright').textContent = t.footerCopyright;
-            document.getElementById('langLabel').textContent = lang === 'fr' ? 'EN' : lang === 'en' ? 'MY' : lang === 'my' ? 'RN' : 'FR';
-            document.documentElement.lang = lang;
-        }
-
-        function toggleLanguage() {
-            const newLang = currentLang === 'fr' ? 'en' : currentLang === 'en' ? 'my' : currentLang === 'my' ? 'rn' : 'fr';
-            applyTranslations(newLang);
-            localStorage.setItem('starlink_user_lang', newLang);
-            if (typeof window.updatePWABannerLang === 'function') window.updatePWABannerLang();
-        }
-            const countryData = await detectCountry();
-            const urlCountry = new URLSearchParams(window.location.search).get('country');
-            detectedCountry = (urlCountry && COUNTRY_CONFIG[urlCountry.toUpperCase()]) ? urlCountry.toUpperCase() : countryData.country;
-            const config = COUNTRY_CONFIG[detectedCountry] || COUNTRY_CONFIG['CD'];
-            const savedLang = localStorage.getItem('starlink_user_lang');
-            applyTranslations(savedLang || config.lang);
+            window.SL.toast('Preference saved.', 'success');
         });
-    </script>
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        window.SL.renderAuthNav();
+
+        var user = window.SL.getUser();
+        if (user && user.name) {
+            $('userName').textContent = user.name;
+            $('userPhone').textContent = window.SL.formatKenyaPhoneInput(user.phone || '') || '—';
+            $('avatar').textContent = user.name.trim().charAt(0).toUpperCase();
+            $('guestCta').classList.add('hidden');
+            $('logoutRow').classList.remove('hidden');
+        }
+
+        $('logoutRow').addEventListener('click', function () {
+            window.SL.setUser(null);
+            window.SL.toast('You have been logged out.', 'success');
+            setTimeout(function () { location.href = '/starlink/'; }, 700);
+        });
+
+        bindToggle('notify', 'sl_pref_notify', true);
+        bindToggle('remember', 'sl_pref_remember', true);
+
+        window.SL.api('/api/config', { auth: false }).then(function (r) {
+            if (!r.ok) return;
+            var phone = r.data.supportPhone, email = r.data.supportEmail;
+            if (phone) {
+                $('supportPhone').textContent = phone;
+                $('callSupport').href = 'tel:' + phone.replace(/\s/g, '');
+            }
+            if (email) {
+                $('supportEmail').textContent = email;
+                $('emailSupport').href = 'mailto:' + email;
+            }
+        }).catch(function () {
+            $('supportPhone').textContent = 'Unavailable';
+            $('supportEmail').textContent = 'Unavailable';
+        });
+    });
+})();
+</script>
 </body>
 </html>
