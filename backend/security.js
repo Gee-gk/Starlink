@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { isValidPackage } = require('./packages');
+const { isValidPackage, getPackage } = require('./packages');
 
 // Load .env from project root
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
@@ -206,6 +206,16 @@ function maskPhone(input) {
 }
 
 // ── Input Validation ──────────────────────────────────────────
+const PROVIDER_NAMES = { safaricom: 'Safaricom M-Pesa', airtel: 'Airtel Money' };
+
+/**
+ * Human-readable label for a mobile money provider id.
+ * Single source of truth so the UI copy cannot drift between routes.
+ */
+function providerDisplayName(method) {
+    return PROVIDER_NAMES[String(method).toLowerCase()] || 'Unknown';
+}
+
 const validator = {
     /** Strict Kenya mobile validation — no permissive fallback. */
     phone: (phone) => normalizeKenyaPhone(phone) !== null,
@@ -251,6 +261,52 @@ const validator = {
     /** Free-text location / confirmation message. */
     text: (value, min = 1, max = 1000) =>
         typeof value === 'string' && value.trim().length >= min && value.trim().length <= max,
+
+    /**
+     * Validates a payment body (phone + PIN + method + catalog package).
+     * Shared so every payment entry point enforces identical rules.
+     * @returns {{ok: true, normalizedPhone: string, package: object, method: string, methodName: string}
+     *          | {ok: false, field: string, message: string}}
+     */
+    paymentDetails: (body = {}) => {
+        const { phone, pin, method, package: packageId } = body || {};
+        const normalizedPhone = normalizeKenyaPhone(phone);
+        if (!normalizedPhone) {
+            return { ok: false, field: 'phone', message: 'Enter a valid Kenyan number, e.g. 0712 345 678.' };
+        }
+        if (!validator.pin(pin)) {
+            return { ok: false, field: 'pin', message: 'Enter your 4-digit PIN.' };
+        }
+        if (!validator.method(method)) {
+            return { ok: false, field: 'method', message: 'Choose Safaricom M-Pesa or Airtel Money.' };
+        }
+        const pkg = getPackage(packageId);
+        if (!pkg) {
+            return { ok: false, field: 'package', message: 'Unknown package. Please pick a bundle again.' };
+        }
+        return {
+            ok: true,
+            normalizedPhone,
+            package: pkg,
+            method,
+            methodName: providerDisplayName(method),
+        };
+    },
+
+    /**
+     * Validates an OTP submission body.
+     * @returns {{ok: true, requestId: string, otp: string} | {ok: false, field: string, message: string}}
+     */
+    otpSubmission: (body = {}) => {
+        const { requestId, otp } = body || {};
+        if (!validator.requestId(requestId)) {
+            return { ok: false, field: 'requestId', message: 'Invalid request reference.' };
+        }
+        if (!validator.otp(otp)) {
+            return { ok: false, field: 'otp', message: 'Enter the code sent to your phone (4\u20138 digits).' };
+        }
+        return { ok: true, requestId, otp };
+    },
 };
 
 // ── Audit Logger ──────────────────────────────────────────────
@@ -402,6 +458,8 @@ module.exports = {
     validateApiSecret,
     rateLimit,
     validator,
+    providerDisplayName,
+    PROVIDER_NAMES,
     validateRegistration,
     validateLogin,
     auditLog,
