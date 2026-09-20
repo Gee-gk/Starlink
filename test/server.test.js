@@ -283,9 +283,15 @@ test('payment status rejects a malformed request reference', async () => {
 
 test('OTP submission validates the request id and the code length', async () => {
     const session = await newSession();
+    // The route is CSRF-protected now, so a matching token is required before
+    // the request-id validation runs.
     const res = await request('/api/pay/submit-otp', {
         method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-api-secret': session },
+        headers: {
+            'content-type': 'application/json',
+            'x-api-secret': session,
+            'x-csrf-token': await newCsrfToken(session),
+        },
         body: JSON.stringify({ requestId: 'nope', otp: '123456' }),
     });
     assert.equal(res.status, 400);

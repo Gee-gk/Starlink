@@ -299,7 +299,7 @@
                     '<span class="pkg-price block">' + money(p.price) + '</span>' +
                 '</span>' +
             '</span>' +
-            '<ul class="pkg-feat"> + p.features.map(function (f) {
+            '<ul class="pkg-feat">' + p.features.map(function (f) {
                 return '<li><i class="uil uil-check" aria-hidden="true"></i>' + esc(f) + '</li>';
             }).join('') + '</ul>' +
             '<span class="pkg-cta">Buy for ' + money(p.price) + '</span>' +
