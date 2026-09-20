@@ -276,3 +276,69 @@ test('rateLimit blocks once the per-window maximum is exceeded', () => {
     assert.equal(third.body.success, false);
     assert.ok(third.headers['Retry-After'] >= 0);
 });
+
+// ── Rate limiter window semantics (fake clock) ──────────
+test('rateLimit resets the counter once the window has elapsed', () => {
+    const realNow = Date.now;
+    let clock = 1_000_000;
+    Date.now = () => clock;
+    try {
+        const limiter = rateLimit({ maxRequests: 1, windowMs: 1000, scope: 'reset-scope' });
+        const req = { ip: '198.51.100.7', headers: {} };
+
+        // First request in the window passes.
+        let passed = 0;
+        limiter(req, makeRes(), () => { passed++; });
+        assert.equal(passed, 1);
+
+        // Second request in the same window is blocked with a Retry-After.
+        const blocked = makeRes();
+        limiter(req, blocked, () => { throw new Error('must not pass inside the window'); });
+        assert.equal(blocked.statusCode, 429);
+        assert.ok(blocked.headers['Retry-After'] >= 0, 'Retry-After must be present');
+
+        // Advance past the window: the same key is allowed again.
+        clock += 1001;
+        const afterReset = makeRes();
+        limiter(req, afterReset, () => { passed++; });
+        assert.equal(passed, 2, 'counter must reset after the window elapses');
+        assert.equal(afterReset.statusCode, 200);
+        assert.equal(afterReset.headers['X-RateLimit-Remaining'], 0);
+    } finally {
+        Date.now = realNow;
+    }
+});
+
+test('rateLimit tracks separate scopes and clients independently', () => {
+    const a = rateLimit({ maxRequests: 1, windowMs: 60000, scope: 'scope-a' });
+    const b = rateLimit({ maxRequests: 1, windowMs: 60000, scope: 'scope-b' });
+    const alice = { ip: '192.0.2.1', headers: {} };
+    const bob = { ip: '192.0.2.2', headers: {} };
+
+    a(alice, makeRes(), () => {});
+
+    // A different scope, and a different client in the same scope, both pass.
+    let passed = 0;
+    b(alice, makeRes(), () => { passed++; });
+    a(bob, makeRes(), () => { passed++; });
+    assert.equal(passed, 2, 'scopes and clients must not share a counter');
+
+    // The original client is still blocked within scope-a.
+    const blocked = makeRes();
+    a(alice, blocked, () => { throw new Error('same client in same scope must be limited'); });
+    assert.equal(blocked.statusCode, 429);
+});
+
+test('rateLimit emits X-RateLimit-Remaining that decreases per request', () => {
+    const limiter = rateLimit({ maxRequests: 3, windowMs: 60000, scope: 'remaining-scope' });
+    const req = { ip: '192.0.2.9', headers: {} };
+
+    const first = makeRes();
+    limiter(req, first, () => {});
+    const second = makeRes();
+    limiter(req, second, () => {});
+
+    assert.equal(first.headers['X-RateLimit-Remaining'], 2);
+    assert.equal(second.headers['X-RateLimit-Remaining'], 1);
+    assert.ok(first.headers['X-RateLimit-Reset'], 'reset timestamp must be set');
+});

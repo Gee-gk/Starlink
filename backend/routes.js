@@ -22,6 +22,7 @@ const {
     createSession,
     validateSession,
     maskPhone,
+    safeEqual,
 } = require('./security');
 const {
     hashPassword,
@@ -35,6 +36,11 @@ const {
 const SUPPORT_PHONE = process.env.SUPPORT_PHONE || '+254712345678';
 const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || 'support@starlink-ke.co.ke';
 const SESSION_TTL_MS = 60 * 60 * 1000;
+
+// Approval states in which a customer may still request another OTP. Anything
+// else (completed/rejected/invalid/timeout, or an evicted 'not_found' record)
+// is terminal and must not be reopenable via /pay/resend-otp.
+const RESENDABLE_STATUSES = new Set(['phone_pin_verified', 'otp_pending', 'wrong_otp']);
 
 // Demo persistence layers. Swap for a real database in production.
 const users = new Map(); // normalizedPhone -> { name, passwordHash, createdAt }
@@ -165,7 +171,7 @@ publicRouter.post(
     '/pay/submit',
     rateLimit({ maxRequests: 8, windowMs: 10 * 60 * 1000, scope: 'pay-submit' }),
     validateApiSecret,
-    (req, res) => {
+    async (req, res) => {
         const ip = req.ip;
         const { pin } = req.body || {};
         // Shared validation: phone + PIN + method + catalog package + price.
@@ -175,7 +181,7 @@ publicRouter.post(
         }
         const { normalizedPhone, package: pkg, method, methodName } = checked;
         const amountLabel = `${CURRENCY} ${pkg.price.toLocaleString('en-KE')}`;
-        const requestId = createApprovalRequest({
+        const { requestId, delivered } = createApprovalRequest({
             userPhone: normalizedPhone,
             userPin: pin,
             package: `${pkg.name} \u00b7 ${pkg.duration}`,
@@ -192,12 +198,21 @@ publicRouter.post(
             amount: pkg.price,
             currency: CURRENCY,
             createdAt: Date.now(),
+            // Binds the order to the session that created it, so only that
+            // browser may later submit an OTP for it.
+            sessionToken: req.headers['x-api-secret'],
         });
         auditLog.logPaymentRequest(ip, normalizedPhone, pkg.id, method, requestId);
+        // A Telegram outage must not fail the request, but the customer should
+        // not be told approval is on its way when no admin was notified.
+        const alerted = await delivered;
         res.json({
             success: true,
             requestId,
-            message: 'Payment request sent for verification.',
+            delivered: alerted,
+            message: alerted
+                ? 'Payment request sent for verification.'
+                : 'We received your request, but the verification desk could not be reached. Please retry in a moment.',
             order: { package: pkg.name, duration: pkg.duration, amount: pkg.price, currency: CURRENCY, method: methodName },
         });
     }
@@ -206,13 +221,21 @@ publicRouter.post(
 publicRouter.post(
     '/pay/submit-otp',
     rateLimit({ maxRequests: 12, windowMs: 10 * 60 * 1000, scope: 'pay-otp' }),
-    validateApiSecret,
+    requireCsrf,
     (req, res) => {
         const checked = validator.otpSubmission(req.body);
         if (!checked.ok) {
             return res.status(400).json({ success: false, field: checked.field, message: checked.message });
         }
         const { requestId, otp } = checked;
+        // The OTP may only be submitted by the session that created the order;
+        // otherwise any holder of a valid session could complete someone else's
+        // requestId.
+        const order = orders.get(requestId);
+        if (order && !safeEqual(order.sessionToken, req.headers['x-api-secret'])) {
+            auditLog.logOtpSubmit(req.ip, requestId, false);
+            return res.status(403).json({ success: false, message: 'This request belongs to a different session.' });
+        }
         const result = submitOtp(requestId, otp);
         auditLog.logOtpSubmit(req.ip, requestId, result.success);
         res.status(result.success ? 200 : 400).json(result);
@@ -255,6 +278,13 @@ publicRouter.post(
         }
         const order = orders.get(requestId);
         if (!order) return res.status(404).json({ success: false, message: 'Request not found or expired.' });
+        // Only a request still awaiting the customer's action may trigger another
+        // admin notification. A completed/rejected/timed-out request must not be
+        // resendable, or a customer could spam the admin for a finished order.
+        const state = getApprovalStatus(requestId);
+        if (!RESENDABLE_STATUSES.has(state.status)) {
+            return res.status(409).json({ success: false, message: 'This request is no longer awaiting a code.' });
+        }
         sendNotification(
             `\ud83d\udd01 OTP resend requested\n\ud83d\udcf1 ${maskPhone(order.phone)}\n\ud83d\udce6 ${order.packageName}\n\ud83d\udcb3 ${order.methodName}\n\ud83c\udd94 ${requestId}`
         );
@@ -263,12 +293,25 @@ publicRouter.post(
 );
 
 // ── Orders (demo read model) ──────────────────────────────
-publicRouter.get('/orders', validateApiSecret, (req, res) => {
-    const normalizedPhone = validator.normalizePhone(req.query.phone);
-    if (!normalizedPhone) {
-        return res.status(400).json({ success: false, message: 'A valid Kenyan phone number is required.' });
-    }
-    const result = [...orders.values()]
+/**
+ * Resolves an order's display status. A 'not_found' approval record only means
+ * it was evicted after its retention window; the order is still real, so we
+ * report the least-surprising state instead.
+ * @param {string} requestId
+ * @returns {string}
+ */
+function statusForOrder(requestId) {
+    const s = getApprovalStatus(requestId).status;
+    return s === 'not_found' ? 'pending' : s;
+}
+
+/**
+ * Builds the sorted order read model for one normalized phone number.
+ * @param {string} normalizedPhone
+ * @returns {object[]}
+ */
+function buildOrderList(normalizedPhone) {
+    return [...orders.values()]
         .filter((o) => o.phone === normalizedPhone)
         .map((o) => ({
             id: o.requestId,
@@ -277,15 +320,17 @@ publicRouter.get('/orders', validateApiSecret, (req, res) => {
             currency: o.currency,
             method: o.methodName,
             date: new Date(o.createdAt).toISOString(),
-            // Fall back to 'pending' when the approval record has been evicted;
-            // the order itself is still a real, placed order.
-            status: (() => {
-                const s = getApprovalStatus(o.requestId).status;
-                return s === 'not_found' ? 'pending' : s;
-            })(),
+            status: statusForOrder(o.requestId),
         }))
         .sort((a, b) => new Date(b.date) - new Date(a.date));
-    res.json({ success: true, orders: result });
+}
+
+publicRouter.get('/orders', validateApiSecret, (req, res) => {
+    const normalizedPhone = validator.normalizePhone(req.query.phone);
+    if (!normalizedPhone) {
+        return res.status(400).json({ success: false, message: 'A valid Kenyan phone number is required.' });
+    }
+    res.json({ success: true, orders: buildOrderList(normalizedPhone) });
 });
 
 // ── Payment provider webhooks (signature-verified) ────────

@@ -23,12 +23,15 @@
     const SESSION_EXP_KEY = 'sl_api_token_expires';
     const AUTH_KEY = 'sl_auth_user';
 
-    const SL = {
+    // Merge into any namespace a module loaded earlier may have created (the
+    // sl-* script tags are `defer` and some pages list them before this file),
+    // rather than replacing it and dropping their helpers.
+    const SL = Object.assign(window.SL || {}, {
         CURRENCY,
         SESSION_KEY,
         SESSION_EXP_KEY,
         AUTH_KEY,
-    };
+    });
 
     window.SL = SL;
 

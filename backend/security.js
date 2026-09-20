@@ -1,7 +1,8 @@
-const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { isValidPackage, getPackage } = require('./packages');
+const { normalizeKenyaPhone } = require('./phone');
+const auditStore = require('./audit-log');
 
 // Load .env from project root
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
@@ -178,24 +179,10 @@ setInterval(() => {
 }, 60000).unref?.();
 
 // ── Kenya phone helpers ───────────────────────────────────────
-/**
- * Kenyan mobile numbers are 07xxxxxxxx or 01xxxxxxxx (9 significant digits
- * after the leading 0). Accepts +254, 254, 0 or bare 9-digit forms.
- * @returns {string|null} E.164 form (+254XXXXXXXXX) or null when invalid.
- */
-function normalizeKenyaPhone(input) {
-    if (typeof input !== 'string') return null;
-    const digitsOnly = input.replace(/[\s\-().]/g, '');
-    if (!/^\+?\d+$/.test(digitsOnly)) return null;
-
-    let national = digitsOnly.replace(/^\+/, '');
-    if (national.startsWith('254')) national = national.slice(3);
-    else if (national.startsWith('0')) national = national.slice(1);
-
-    // Safaricom/Airtel/Telkom mobile prefixes all start 7 or 1.
-    if (!/^[71]\d{8}$/.test(national)) return null;
-    return `+254${national}`;
-}
+// The canonical normalizer lives in ./phone.js so the server and the browser
+// bundle (assets/sl-formatters.js) share one definition. It is imported at the
+// top of this file and re-exported below, so every existing
+// `require('./security').normalizeKenyaPhone` caller keeps working unchanged.
 
 /** Masks a phone for logs: +254712345678 -> +254 71****678 */
 function maskPhone(input) {
@@ -362,20 +349,11 @@ function validateLogin(body = {}) {
 }
 
 const auditLog = {
-    file: path.join(__dirname, '..', 'logs', 'audit.log'),
-
-    init() {
-        const logDir = path.dirname(this.file);
-        if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
-    },
+    // File location, append, rotation and pruning live in ./audit-log.js.
+    file: auditStore.FILE,
 
     write(action, data = {}) {
-        const entry = { timestamp: new Date().toISOString(), action, ...data };
-        try {
-            fs.appendFileSync(this.file, JSON.stringify(entry) + '\n', 'utf8');
-        } catch (err) {
-            console.error('Audit log write failed:', err.message);
-        }
+        auditStore.append({ timestamp: new Date().toISOString(), action, ...data });
     },
 
     /** Phone is masked; PIN and OTP are never written to disk. */
@@ -399,58 +377,6 @@ const auditLog = {
         this.write(action, { ip, phone: maskPhone(phone), success, ...(reason ? { reason } : {}) });
     },
 };
-
-auditLog.init();
-
-// ── Log rotation ──────────────────────────────
-// Rotate by renaming the completed file aside and letting the writer create a
-// fresh active log. This never rewrites the live file, so lines appended while
-// rotation runs cannot be lost, and the event loop is not blocked by a
-// read-everything/write-everything cycle.
-const AUDIT_ROTATE_BYTES = parseInt(process.env.AUDIT_ROTATE_BYTES || String(10 * 1024 * 1024), 10);
-const AUDIT_RETAIN_DAYS = parseInt(process.env.AUDIT_RETAIN_DAYS || '30', 10);
-const AUDIT_ARCHIVE_PATTERN = /^audit-(\d{4}-\d{2}-\d{2})\d*(?:\.\d+)?\.log$/;
-
-/** Deletes archived logs older than AUDIT_RETAIN_DAYS. */
-function pruneArchivedLogs() {
-    const logDir = path.dirname(auditLog.file);
-    const cutoff = Date.now() - AUDIT_RETAIN_DAYS * 24 * 60 * 60 * 1000;
-    let removed = 0;
-    for (const name of fs.readdirSync(logDir)) {
-        const match = AUDIT_ARCHIVE_PATTERN.exec(name);
-        if (!match) continue;
-        if (new Date(`${match[1]}T00:00:00.000Z`).getTime() >= cutoff) continue;
-        try {
-            fs.unlinkSync(path.join(logDir, name));
-            removed++;
-        } catch (err) {
-            console.error('Audit archive cleanup failed:', err.message);
-        }
-    }
-    return removed;
-}
-
-function rotateAuditLog() {
-    try {
-        if (!fs.existsSync(auditLog.file)) return;
-        if (fs.statSync(auditLog.file).size < AUDIT_ROTATE_BYTES) return;
-
-        const date = new Date().toISOString().slice(0, 10);
-        const dir = path.dirname(auditLog.file);
-        let target = path.join(dir, `audit-${date}.log`);
-        for (let i = 1; fs.existsSync(target); i++) target = path.join(dir, `audit-${date}.${i}.log`);
-
-        // Rename is atomic: the active path becomes free and the next append
-        // creates a brand-new file. No content is read or rewritten.
-        fs.renameSync(auditLog.file, target);
-        const pruned = pruneArchivedLogs();
-        console.log(`Rotated audit log -> ${path.basename(target)}${pruned ? ` (pruned ${pruned} old archive(s))` : ''}`);
-    } catch (err) {
-        console.error('Audit log rotation failed:', err.message);
-    }
-}
-
-setInterval(rotateAuditLog, 24 * 60 * 60 * 1000).unref?.();
 
 module.exports = {
     securityHeaders,

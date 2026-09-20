@@ -27,9 +27,17 @@ function hashPassword(password) {
  * @returns {boolean}
  */
 function verifyPassword(password, stored) {
-    if (typeof stored !== 'string') return false;
+    if (typeof stored !== 'string') {
+        auditLog.write('CORRUPT_PASSWORD_HASH', { reason: 'not_a_string' });
+        return false;
+    }
     const [scheme, saltHex, hashHex] = stored.split('$');
-    if (scheme !== 'scrypt' || !saltHex || !hashHex) return false;
+    if (scheme !== 'scrypt' || !saltHex || !hashHex) {
+        // Distinguish a corrupt/migrated hash from a wrong password so data
+        // integrity problems surface instead of looking like failed logins.
+        auditLog.write('CORRUPT_PASSWORD_HASH', { reason: 'malformed_stored_hash' });
+        return false;
+    }
     const derived = crypto.scryptSync(password, Buffer.from(saltHex, 'hex'), SCRYPT_KEYLEN, SCRYPT_OPTIONS);
     const expected = Buffer.from(hashHex, 'hex');
     if (derived.length !== expected.length) return false;

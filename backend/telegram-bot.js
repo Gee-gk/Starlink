@@ -129,6 +129,11 @@ async function callTelegram(label, invoke) {
     return null;
 }
 
+/**
+ * Sends a message to the admin. Resolves to the Telegram message object on
+ * success or null when Telegram is disabled or every retry failed, so callers
+ * can distinguish delivered from not-delivered and degrade gracefully.
+ */
 function send(text, extra = {}) {
     if (!isEnabled()) return Promise.resolve(null);
     return callTelegram('sendMessage', () => bot.sendMessage(adminChatId, text, extra));
@@ -230,7 +235,16 @@ if (isEnabled()) {
         return '🗑️ Queue cleared.';
     });
 
-    bot.on('callback_query', async (query) => {
+    bot.on('callback_query', (query) => handleCallback(query));
+}
+
+/**
+ * Handles an admin inline-keyboard callback. Extracted from the polling setup
+ * so it can be unit-tested without a live bot instance.
+ *
+ * @param {object} query Telegram callback_query object (id, data, message?).
+ */
+async function handleCallback(query) {
         // query.message is absent for callbacks sent from an inline message, so
         // reading .chat.id unguarded would throw and kill the polling loop.
         const chatId = query.message?.chat?.id;
@@ -331,10 +345,9 @@ if (isEnabled()) {
                 break;
             }
 
-            default:
-                await answer('Unknown action.');
-        }
-    });
+        default:
+            await answer('Unknown action.');
+    }
 }
 
 // ── Public API ────────────────────────────────────────────────
@@ -373,14 +386,15 @@ function createApprovalRequest(data) {
         ],
     };
 
-    send(`🆕 *New payment request*\n\n${orderSummary(request)}\n\nReview and choose an action:`, {
+    const delivered = send(`🆕 *New payment request*\n\n${orderSummary(request)}\n\nReview and choose an action:`, {
         parse_mode: 'Markdown',
         reply_markup: keyboard,
     }).then((msg) => {
         if (msg) request.adminMessageId = msg.message_id;
+        return msg !== null;
     });
 
-    return requestId;
+    return { requestId, delivered };
 }
 
 /**
@@ -435,10 +449,13 @@ function getApprovalStatus(requestId) {
     };
 }
 
+/**
+ * Fire-and-forget admin notification.
+ * @returns {Promise<boolean>} true when Telegram accepted the message.
+ */
 function sendNotification(message) {
-    if (!isEnabled()) return false;
-    send(message);
-    return true;
+    if (!isEnabled()) return Promise.resolve(false);
+    return send(message).then((msg) => msg !== null);
 }
 
 module.exports = {
@@ -447,6 +464,7 @@ module.exports = {
     submitOtp,
     getApprovalStatus,
     sendNotification,
+    handleCallback,
     approvals,
     isEnabled,
 };

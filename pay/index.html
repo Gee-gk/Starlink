@@ -480,6 +480,7 @@
 
         var res = await window.SL.api('/api/pay/submit-otp', {
             method: 'POST',
+            csrf: true,
             body: { requestId: requestId, otp: otp }
         }).catch(function () { return { ok: false, data: {} }; });
 
