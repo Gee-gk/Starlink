@@ -436,12 +436,15 @@
                 break;
 
             case 'wrong_otp':
+                // The customer must be allowed to type a new code. Restarting
+                // polling here would immediately re-read the same 'wrong_otp'
+                // state and put the form back into a reset loop, so polling
+                // resumes only after they submit again (see submitOtp).
                 stopPolling();
                 show('s3');
                 banner('s3banner', 'That code was incorrect. Please check your SMS and enter the code again.');
                 $('otp').value = '';
                 $('otp').focus();
-                startPolling();
                 break;
 
             case 'rejected':

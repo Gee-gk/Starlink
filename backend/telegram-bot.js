@@ -10,7 +10,12 @@ let botEnabled = false;
 
 const isPlaceholder = (v) => !v || /your[-_]|change-me|placeholder/i.test(v);
 
-if (isPlaceholder(token) || isPlaceholder(adminChatId)) {
+if (process.env.NODE_ENV === 'test') {
+    // Under test we import this module for its state machine and helpers, but
+    // must never open a live Telegram long-poll — it keeps the event loop alive
+    // and the test runner never exits.
+    console.warn('🧪 NODE_ENV=test — Telegram bot intentionally NOT started.');
+} else if (isPlaceholder(token) || isPlaceholder(adminChatId)) {
     console.warn('⚠️  TELEGRAM_BOT_TOKEN / TELEGRAM_ADMIN_CHAT_ID not set — Telegram approval is DISABLED.');
 } else {
     try {
